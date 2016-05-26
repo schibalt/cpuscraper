@@ -1,0 +1,407 @@
+/* CPU Description Page */
+
+table.desc
+{ 
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+	border-style: dashed;
+	border-width: 2px;
+	border-color: #416b73;
+	border-collapse: collapse;
+	border-spacing: 2xp;
+}
+
+table.desc td
+{
+	padding: 5px;	
+}
+
+.outer {
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+	border-style: dashed;
+	border-width: 2px;
+	border-color: #416b73;
+	border-collapse: collapse;
+	border-spacing: 2xp;
+	padding: 0px;
+}
+
+.cpumark {
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+	border-style: dashed;
+	border-width: 2px;
+	border-color: #416b73;
+	border-collapse: collapse;
+	border-spacing: 2xp;
+	padding: 0px;	
+}
+
+table.price
+{ 
+	width: 600px;
+	margin-left: auto;
+	margin-right: auto;
+	border-style: dashed;
+	border-width: 2px;
+	border-color: #416b73;
+	border-collapse: collapse;
+	border-spacing: 2xp;
+}
+
+table.price td, table.price th {
+	border-width: 2px;
+	border-color: #416b73;
+	border-style: dashed;
+	padding: 2px;
+	text-align: center;
+}
+
+.cpuname {
+	font-family: Arial, Helvetica, sans-serif; 
+	font-size: 17px; 
+	font-weight: bold;
+	border-bottom: solid #b53118 3px;
+	padding: 1px;
+}
+
+td.valuesmall {
+	background-image: url(images/gridline.png);
+	background-repeat: repeat-y;
+	background-position: left top;
+	border-left: 1px solid #e5e5e5;
+	border-right: 1px solid #e5e5e5;
+	padding:0px;
+	border-bottom: none;
+	background-color:transparent;
+	font-size: 65%;
+	text-align: left;
+	width: 300px;
+}
+
+table.chartsmall { 
+	background-image: url(images/stripe-bg.png);
+	background-repeat: repeat;
+	background-position: left top;
+	width: 500px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.subcaption {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 80%;
+	font-style: italic;
+}
+
+/* CPU MARK CHARTS */
+
+table.chart { 
+	background-image: url(images/stripe-bg.png);
+	background-repeat: repeat;
+	background-position: left top;
+	width: 700px;
+	margin-left: auto;
+	margin-right: auto;
+	border:0;
+}
+
+caption.chart
+{
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 110%;
+	font-weight: 200;
+	padding-bottom: 15px;
+}
+
+th.chart {
+	text-align: center;
+	vertical-align: top;
+	background-color: #FFFFFF;
+	border:0;
+}
+
+.auraltext
+{
+   position: absolute;
+   font-size: 0;
+   left: -1000px;
+}
+
+td.chart /* Name Label */
+{
+	padding: 4px 4px;
+	background-color: #FFFFFF;
+	font-size: 60%;
+	text-align: right;
+}
+
+td.value /* Rating */
+{
+	background-image: url(images/gridline.png);
+	background-repeat: repeat-y;
+	background-position: left top;
+	border-left: 1px solid #e5e5e5;
+	border-right: 1px solid #e5e5e5;
+	padding:0px;
+	border-bottom: none;
+	background-color:transparent;
+	font-size: 65%;
+	text-align: left;
+	width: 400px;
+	vertical-align: middle;
+}
+
+
+
+td.value img {
+	vertical-align: middle; 
+	margin: 1px 1px 1px 0px;
+}
+
+.notes {
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 70%;
+	text-align: center;
+}
+
+/* The following replaces the image bars with CSS bars with PT8 Charts */
+
+/*
+	 CSS-Tricks Example
+	 by Chris Coyier
+	 http://css-tricks.com
+*/
+
+.meter 
+{ 
+	height: 10px;  /* Can be anything */
+	position: relative;
+	/*background: #555;*/
+	/*margin: 0px 0 0px 0;  Just for demo spacing */
+	-moz-border-radius: 25px;
+	-webkit-border-radius: 25px;
+	border-radius: 25px;
+	padding: 2px;		
+	/*
+	-webkit-box-shadow: inset 0 -1px 1px rgba(255,255,255,0.3);
+	-moz-box-shadow   : inset 0 -1px 1px rgba(255,255,255,0.3);
+	box-shadow        : inset 0 -1px 1px rgba(255,255,255,0.3);
+	*/
+}
+
+.meter > span 
+{
+	display: inline;
+	float: left;
+	height: 100%;
+	   -webkit-border-top-right-radius: 20px;
+	-webkit-border-bottom-right-radius: 20px;
+	       -moz-border-radius-topright: 20px;
+	    -moz-border-radius-bottomright: 20px;
+	           border-top-right-radius: 20px;
+	        border-bottom-right-radius: 20px;
+	    -webkit-border-top-left-radius: 20px;
+	 -webkit-border-bottom-left-radius: 20px;
+	        -moz-border-radius-topleft: 20px;
+	     -moz-border-radius-bottomleft: 20px;
+	            border-top-left-radius: 20px;
+	         border-bottom-left-radius: 20px;
+
+	background-color: rgb(43,194,83);
+	background-image: -webkit-gradient(
+	  linear,
+	  left bottom,
+	  left top,
+	  color-stop(0, rgb(43,194,83)),
+	  color-stop(1, rgb(84,240,84))
+	 );
+	background-image: -moz-linear-gradient(
+	  center bottom,
+	  rgb(43,194,83) 37%,
+	  rgb(84,240,84) 69%
+	 );
+
+	-webkit-box-shadow: 
+	  inset 0 2px 9px  rgba(255,255,255,0.3),
+	  inset 0 -2px 6px rgba(0,0,0,0.4);
+	-moz-box-shadow: 
+	  inset 0 2px 9px  rgba(255,255,255,0.3),
+	  inset 0 -2px 6px rgba(0,0,0,0.4);
+	box-shadow: 
+	  inset 0 2px 9px  rgba(255,255,255,0.3),
+	  inset 0 -2px 6px rgba(0,0,0,0.4);
+	position: relative;
+	overflow: hidden;
+}
+
+/* This is supposed to do the striping */
+
+/*
+
+.meter > span:after, .animate > span > span {
+	content: "";
+	position: absolute;
+	top: 0; left: 0; bottom: 0; right: 0;
+	background-image: 
+	   -webkit-gradient(linear, 0 0, 100% 100%, 
+	      color-stop(.25, rgba(255, 255, 255, .2)), 
+	      color-stop(.25, transparent), color-stop(.5, transparent), 
+	      color-stop(.5, rgba(255, 255, 255, .2)), 
+	      color-stop(.75, rgba(255, 255, 255, .2)), 
+	      color-stop(.75, transparent), to(transparent)
+	   );
+	background-image: 
+		-moz-linear-gradient(
+		  -45deg, 
+	      rgba(255, 255, 255, .2) 25%, 
+	      transparent 25%, 
+	      transparent 50%, 
+	      rgba(255, 255, 255, .2) 50%, 
+	      rgba(255, 255, 255, .2) 75%, 
+	      transparent 75%, 
+	      transparent
+	   );
+	z-index: 1;
+	-webkit-background-size: 50px 50px;
+	-moz-background-size: 50px 50px;
+	-webkit-animation: move 2s linear infinite;
+	   -webkit-border-top-right-radius: 8px;
+	-webkit-border-bottom-right-radius: 8px;
+	       -moz-border-radius-topright: 8px;
+	    -moz-border-radius-bottomright: 8px;
+	           border-top-right-radius: 8px;
+	        border-bottom-right-radius: 8px;
+	    -webkit-border-top-left-radius: 20px;
+	 -webkit-border-bottom-left-radius: 20px;
+	        -moz-border-radius-topleft: 20px;
+	     -moz-border-radius-bottomleft: 20px;
+	            border-top-left-radius: 20px;
+	         border-bottom-left-radius: 20px;
+	overflow: hidden;
+}
+
+.animate > span:after {
+	display: none;
+}
+
+
+@-webkit-keyframes move {
+    0% {
+       background-position: 0 0;
+    }
+    100% {
+       background-position: 50px 50px;
+    }
+}
+*/
+/* All the pretty colors */
+
+.pink > span 
+{
+	background-color: #FFB6C1;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #FFB6C1),color-stop(1, #FF69B4));
+	background-image: -webkit-linear-gradient(top, #FFB6C1, #FF69B4); 
+  background-image: -moz-linear-gradient(top, #FFB6C1, #FF69B4);
+  background-image: -ms-linear-gradient(top, #FFB6C1, #FF69B4);
+  background-image: -o-linear-gradient(top, #FFB6C1, #FF69B4);
+}
+
+.yellow > span 
+{
+	background-color: #F0E68C;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #F0E68C),color-stop(1, #FFFF00));
+	background-image: -webkit-linear-gradient(top, #F0E68C, #FFFF00); 
+  background-image: -moz-linear-gradient(top, #F0E68C, #FFFF00);
+  background-image: -ms-linear-gradient(top, #F0E68C, #FFFF00);
+  background-image: -o-linear-gradient(top, #F0E68C, #FFFF00);
+}
+
+.green > span 
+{
+	background-color: #2E8B57;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #2E8B57),color-stop(1, #228B22));
+	background-image: -webkit-linear-gradient(top, #2E8B57, #228B22); 
+  background-image: -moz-linear-gradient(top, #2E8B57, #228B22);
+  background-image: -ms-linear-gradient(top, #2E8B57, #228B22);
+  background-image: -o-linear-gradient(top, #2E8B57, #228B22);
+}
+
+.light-purple > span 
+{
+	background-color: #DA70D6;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #DA70D6),color-stop(1, #BA55D3));
+	background-image: -webkit-linear-gradient(top, #DA70D6, #BA55D3); 
+  background-image: -moz-linear-gradient(top, #DA70D6, #BA55D3);
+  background-image: -ms-linear-gradient(top, #DA70D6, #BA55D3);
+  background-image: -o-linear-gradient(top, #DA70D6, #BA55D3);
+}
+
+.red > span 
+{
+	background-color: #FF6347;
+	background-image: -webkit-gradient(linear,left top,left bottom,color-stop(0, #FF6347),color-stop(1, #FF0000));
+	background-image: -webkit-linear-gradient(top, #FF6347, #FF0000);
+	background-image: -moz-linear-gradient(top, #FF6347, #FF0000);
+	background-image: -ms-linear-gradient(top, #FF6347, #FF0000);
+	background-image: -o-linear-gradient(top, #FF6347, #FF0000);
+}
+
+.turquoise > span 
+{
+	background-color: #20B2AA;
+	background-image: -webkit-gradient(linear,left top,left bottom,color-stop(0, #20B2AA),color-stop(1, #008080));
+	background-image: -webkit-linear-gradient(top, #20B2AA, #008080);
+	background-image: -moz-linear-gradient(top, #20B2AA, #008080);
+	background-image: -ms-linear-gradient(top, #20B2AA, #008080);
+	background-image: -o-linear-gradient(top, #20B2AA, #008080);
+}
+
+.orange > span 
+{
+	background-color: #FFA500;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #FFA500),color-stop(1, #FF8C00));
+	background-image: -webkit-linear-gradient(top, #FFA500, #FF8C00); 
+  background-image: -moz-linear-gradient(top, #FFA500, #FF8C00);
+  background-image: -ms-linear-gradient(top, #FFA500, #FF8C00);
+  background-image: -o-linear-gradient(top, #FFA500, #FF8C00);
+}
+
+.brown > span 
+{
+	background-color: #CD853F;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #CD853F),color-stop(1, #8B4513));
+	background-image: -webkit-linear-gradient(top, #CD853F, #8B4513); 
+  background-image: -moz-linear-gradient(top, #CD853F, #8B4513);
+  background-image: -ms-linear-gradient(top, #CD853F, #8B4513);
+  background-image: -o-linear-gradient(top, #CD853F, #8B4513);
+}
+
+.purple > span 
+{
+	background-color: #9932CC;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #9932CC),color-stop(1, #483D8B));
+	background-image: -webkit-linear-gradient(top, #9932CC, #483D8B); 
+  background-image: -moz-linear-gradient(top, #9932CC, #483D8B);
+  background-image: -ms-linear-gradient(top, #9932CC, #483D8B);
+  background-image: -o-linear-gradient(top, #9932CC, #483D8B);
+}
+
+.blue > span 
+{
+	background-color: #4169E1;
+	background-image: -webkit-gradient(linear,left top, left bottom,color-stop(0, #4169E1),color-stop(1, #0000FF));
+	background-image: -webkit-linear-gradient(top, #4169E1, #0000FF); 
+  background-image: -moz-linear-gradient(top, #4169E1, #0000FF);
+  background-image: -ms-linear-gradient(top, #4169E1, #0000FF);
+  background-image: -o-linear-gradient(top, #4169E1, #0000FF);
+}
+
+.nostripes > span > span, .nostripes > span:after {
+	-webkit-animation: none;
+	background-image: none;
+}

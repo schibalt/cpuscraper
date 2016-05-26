@@ -1,0 +1,80 @@
+/*Second level navigation menu */
+#tabs {
+	width: 750px;
+	font-size: 12px;
+	line-height: normal;
+	height: 27px;
+}
+	
+#tabs ul {
+	margin: 0;
+	padding: 3px 10px 0 7px;
+	list-style: none;
+}
+	
+#tabs li {
+	display: inline;
+	margin: 0;
+	padding: 0;
+}
+
+#tabs a {
+	float: left;
+	background: url(images/tabsleft.gif) no-repeat left top;
+	margin: 0;
+	padding: 0 0 0 3px;
+	text-decoration: none;
+}
+	
+#tabs span.currenttab {
+	float: left;
+	display: block;
+	background: url(images/tabsright.gif) no-repeat right top;
+	background-position: 100% -42px;
+	padding: 5px 12px 4px 6px;
+	color: #000;
+	font-weight: bold;
+}
+
+#tabs span.currenttab2 {
+	float: left;
+	display: block;
+	background: url(images/tabsleft.gif) no-repeat left top;
+	background-position: 0% -42px;
+	margin: 0;
+	padding: 0 0 0 4px;
+}
+
+#tabs a span {
+	float: left;
+	display: block;
+	background: url(images/tabsright.gif) no-repeat right top;
+	padding: 5px 10px 4px 6px;
+	color: #444;
+}
+	
+/* Commented Backslash Hack hides rule from IE5-Mac \*/
+#tabs a span {float:none;}
+/* End IE5-Mac hack */
+	
+#tabs a:hover span {
+	color: #416b73;
+	background-position: 100% -84px;
+}
+	
+#tabs a:hover {
+	background-position: 0% -84px;
+}
+	
+#tabs a:hover span {
+	background-position: 100% -84px;
+}
+
+/*Benchmark Sites*/
+.footerNav {
+	text-align:center;
+	font-family: Arial, Helvetica, sans-serif; 
+	font-size: 12px; 
+	margin-top: 2px; 
+	margin-bottom: 2px
+}

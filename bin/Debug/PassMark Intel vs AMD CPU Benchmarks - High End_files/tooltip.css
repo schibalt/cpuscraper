@@ -1,0 +1,14 @@
+.tooltip {
+	font:10px/12px Arial,Helvetica,sans-serif;
+	text-align: left;
+	border:solid 1px #666666;
+	width:175Px;
+	padding:1px;
+  position:fixed;
+  z-index:100;
+  visibility:hidden;
+  color:#333333;
+  top:120px;
+  left:390px;
+  background-color:#ffffcc;
+}
