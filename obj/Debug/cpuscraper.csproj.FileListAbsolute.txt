@@ -1,9 +1,1 @@
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\cpuscraper.exe.config
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\cpuscraper.exe
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\cpuscraper.pdb
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\HtmlAgilityPack.dll
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\HtmlAgilityPack.pdb
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\HtmlAgilityPack.xml
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\obj\Debug\cpuscraper.csprojResolveAssemblyReference.cache
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\obj\Debug\cpuscraper.exe
-c:\users\andrew\documents\visual studio 2015\Projects\cpuscraper\cpuscraper\obj\Debug\cpuscraper.pdb
+C:\Users\Andrew\Documents\Visual Studio 2015\Projects\cpuscraper\cpuscraper\bin\Debug\cpuscraper.exe.config
