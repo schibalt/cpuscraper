@@ -1,2 +1,2 @@
 # cpuscraper
-scrapes cpu info from retail and benchmark sites to provide enable analytics for informed purchase decisions
+scrapes cpu info from retail and benchmark sites to enable analytics for informed purchase decisions
