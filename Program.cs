@@ -47,23 +47,30 @@ namespace cpuScraper
             Price = Convert.ToDecimal(anchor.Attributes.Where(a => a.Name.Equals("data-price")).First().Value);
             Brand = anchor.Attributes.Where(a => a.Name.Equals("data-brand")).First().Value;
 
-            var modelRegex = new Regex(@"((G)|(i[357]( |-))|(E[35] ?)|(FX )|(A(6|10) )|(Opteron )|(Sempron ))?\d{4}[a-z]?( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            MatchCollection modelMatches = modelRegex.Matches(Name);
+            var modelRegex = new Regex(@"((G)|(i[357]( |-))|(E[35]( |-)?)|(FX )|(A(6|10)[ |-])|(Opteron )|(Athlon )|(Sempron ))?(\d{4}[^vV]?)( ?[vV]\d)?", RegexOptions.Compiled);
+            MatchCollection matches = modelRegex.Matches(Name);
 
-            if (modelMatches.Count > 0)
-                Model = modelMatches[0].Groups[0].Value;
+            Model = "";
+
+            if (matches.Count > 0)
+            {
+                for (var match = 0; match < matches.Count; ++match)
+                    for (var group = 0; group < matches[match].Length; ++group)
+                        if (matches[match].Groups[group].Value.Length > Model.Length)
+                            Model = matches[match].Groups[group].Value;
+            }
             else
             {
-                 modelRegex = new Regex(@"Pentium 4", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                 modelMatches = modelRegex.Matches(Name);
-                Model = modelMatches[0].Groups[0].Value;
+                modelRegex = new Regex(@"Pentium 4", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                matches = modelRegex.Matches(Name);
+                Model = matches[0].Groups[0].Value;
             }
 
             var rx = new Regex(@"\d{2}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
             var discountNode = node.SelectNodes("descendant::div[@class='highlight clear']").First();
 
-            MatchCollection matches = rx.Matches(discountNode.InnerText);
+             matches = rx.Matches(discountNode.InnerText);
 
             if (matches.Count > 0)
                 Discount = Convert.ToByte(matches[0].Groups[0].Value);
@@ -79,28 +86,33 @@ namespace cpuScraper
 
         public string Model { get; set; }
 
+        public string Name { get; set; }
+
         public ushort Value { get; set; }
 
         public Benchmark(HtmlNode node)
         {
             //Console.WriteLine(node.OuterHtml);
             var nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rk')]/a");
+            if (nameAnchor == null) return;
+
+            Name = nameAnchor.InnerText;
 
             var regex = new Regex(@"(Intel|AMD)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
             MatchCollection matches = regex.Matches(nameAnchor.InnerText);
 
             //if (matches.Count > 0)
-                Brand = matches[0].Groups[0].Value;
+            Brand = matches[0].Groups[0].Value;
 
-             regex = new Regex(@"((G)|(i[357]-)|(E[35]-)|(FX )|(Phenom II X[46] ))?(B\d{2}|\d{3,4}X?)[a-z]?( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-             matches = regex.Matches(nameAnchor.InnerText);
+            regex = new Regex(@"((G)|(i[357]-)|(E[35]-)|([FR]X[ |-])|(Phenom II X[46] )|(Opteron )|(Athlon X4 )|(A(6|8|10|12)(PRO )?[ |-]))?(B\d{2}|[A-Z]?\d{3,4}X?)[a-z]{0,2}( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            matches = regex.Matches(nameAnchor.InnerText);
 
             //if (matches.Count > 0)
-                Model = matches[0].Groups[0].Value;
+            Model = matches[0].Groups[0].Value;
 
-             nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rt')]/div");
-            
-            Value = Convert.ToUInt16(nameAnchor.InnerText.Trim().Replace(",",""));
+            nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rt')]/div");
+
+            Value = Convert.ToUInt16(nameAnchor.InnerText.Trim().Replace(",", ""));
 
             Print();
         }
@@ -158,15 +170,15 @@ namespace cpuScraper
                     } // httpclient
                     break;
                 case "file":
-                    var pages = new List<string> { "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center.html" , "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center2.html", "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center3.html" };
+                    var pages = new List<string> { "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center.html", "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center2.html", "AMD _ Intel _ Processors_CPUs _ Computer Parts _ Micro Center3.html" };
 
                     HtmlNodeCollection nodes = null;
 
-                    foreach(var page in pages)
+                    foreach (var page in pages)
                     {
                         htmlDoc.Load(page);
 
-                         nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
+                        nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
 
                         foreach (var node in nodes)
                         {
