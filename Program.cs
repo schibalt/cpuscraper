@@ -10,6 +10,19 @@ using System.ComponentModel;
 
 namespace cpuScraper
 {
+    static class Utils
+    {
+        public static Regex MCModelRegex = new Regex(@"((G)|(i[357]( |-))|(E[35]( |-)?)|(FX )|(A(6|10)[ |-])|(Opteron )|(Athlon )|(Sempron ))?(\d{4}[^vV]?)( ?[vV]\d)?", RegexOptions.Compiled);
+
+        public static Regex PentiumRegex = new Regex(@"Pentium 4", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public static Regex DiscountRegex = new Regex(@"\d{2}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public static Regex CpuBenchBrandRegex = new Regex(@"(Intel|AMD)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public static Regex CpuBenchModelRegex = new Regex(@"((G)|(i[357]-)|(E[35]-)|([FR]X[ |-])|(Phenom II X[46] )|(Opteron )|(Athlon X4 )|(A(6|8|10|12)(PRO )?[ |-]))?(B\d{2}|[A-Z]?\d{3,4}X?)[a-z]{0,2}( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    }
+
     class Printable
     {
         public void Print()
@@ -38,6 +51,8 @@ namespace cpuScraper
 
         public byte Discount { get; set; }
 
+        public Benchmark Benchmark { get; set; }
+
         public Cpu(HtmlNode node)
         {
             //Console.WriteLine(node.OuterHtml);
@@ -47,8 +62,7 @@ namespace cpuScraper
             Price = Convert.ToDecimal(anchor.Attributes.Where(a => a.Name.Equals("data-price")).First().Value);
             Brand = anchor.Attributes.Where(a => a.Name.Equals("data-brand")).First().Value;
 
-            var modelRegex = new Regex(@"((G)|(i[357]( |-))|(E[35]( |-)?)|(FX )|(A(6|10)[ |-])|(Opteron )|(Athlon )|(Sempron ))?(\d{4}[^vV]?)( ?[vV]\d)?", RegexOptions.Compiled);
-            MatchCollection matches = modelRegex.Matches(Name);
+            MatchCollection matches = Utils.MCModelRegex.Matches(Name);
 
             Model = "";
 
@@ -61,16 +75,13 @@ namespace cpuScraper
             }
             else
             {
-                modelRegex = new Regex(@"Pentium 4", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-                matches = modelRegex.Matches(Name);
-                Model = matches[0].Groups[0].Value;
+                matches = Utils.PentiumRegex.Matches(Name);
+                Model = matches[0].Groups[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
             }
-
-            var rx = new Regex(@"\d{2}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
             var discountNode = node.SelectNodes("descendant::div[@class='highlight clear']").First();
 
-             matches = rx.Matches(discountNode.InnerText);
+            matches = Utils.DiscountRegex.Matches(discountNode.InnerText);
 
             if (matches.Count > 0)
                 Discount = Convert.ToByte(matches[0].Groups[0].Value);
@@ -98,17 +109,15 @@ namespace cpuScraper
 
             Name = nameAnchor.InnerText;
 
-            var regex = new Regex(@"(Intel|AMD)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            MatchCollection matches = regex.Matches(nameAnchor.InnerText);
+            MatchCollection matches = Utils.CpuBenchBrandRegex.Matches(nameAnchor.InnerText);
 
             //if (matches.Count > 0)
             Brand = matches[0].Groups[0].Value;
 
-            regex = new Regex(@"((G)|(i[357]-)|(E[35]-)|([FR]X[ |-])|(Phenom II X[46] )|(Opteron )|(Athlon X4 )|(A(6|8|10|12)(PRO )?[ |-]))?(B\d{2}|[A-Z]?\d{3,4}X?)[a-z]{0,2}( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-            matches = regex.Matches(nameAnchor.InnerText);
+            matches = Utils.CpuBenchModelRegex.Matches(nameAnchor.InnerText);
 
             //if (matches.Count > 0)
-            Model = matches[0].Groups[0].Value;
+            Model = matches[0].Groups[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
 
             nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rt')]/div");
 
@@ -123,7 +132,7 @@ namespace cpuScraper
         static void Main(string[] args)
         {
             var htmlDoc = new HtmlDocument();
-            var pageOfMCCpus = new List<Cpu>();
+            var mcCpus = new List<Cpu>();
             var benches = new List<Benchmark>();
 
             switch (args[0])
@@ -160,9 +169,9 @@ namespace cpuScraper
 
                             if (htmlDoc.DocumentNode != null)
                             {
-                                pageOfMCCpus = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']").ToList().ConvertAll(n => new Cpu(n));
+                                mcCpus = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']").ToList().ConvertAll(n => new Cpu(n));
 
-                                pageOfMCCpus.AddRange(pageOfMCCpus);
+                                mcCpus.AddRange(mcCpus);
 
                             }
                         } // iterate pages
@@ -182,11 +191,7 @@ namespace cpuScraper
 
                         foreach (var node in nodes)
                         {
-                            try
-                            {
-                                pageOfMCCpus.Add(new Cpu(node));
-                            }
-                            catch (Exception) { }
+                            mcCpus.Add(new Cpu(node));
                         }
                     }
 
@@ -195,11 +200,12 @@ namespace cpuScraper
 
                     foreach (var node in nodes)
                     {
-                        try
-                        {
-                            benches.Add(new Benchmark(node));
-                        }
-                        catch (Exception) { }
+                        var benchmark = new Benchmark(node);
+                        benches.Add(benchmark);
+
+                        var mcCpu = mcCpus.FirstOrDefault(c => c.Model.Equals(benchmark.Model));
+                        if (mcCpu != null)
+                            mcCpu.Benchmark = benchmark;
                     }
 
                     break;
