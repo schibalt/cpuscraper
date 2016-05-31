@@ -1,7 +1,9 @@
 ﻿using HtmlAgilityPack;
+using OfficeOpenXml;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -13,16 +15,24 @@ namespace cpuScraper
 {
     static class Utils
     {
-        public static Regex MCSeriesRegex = new Regex(@"((i[357])|(FX )|(A(6|10)[ |-])|(Opteron )|(Athlon )|(Sempron )|(Pentium 4)|(Celeron ))?", RegexOptions.Compiled);
+        public static Regex MCSeriesRegex = new Regex(@"(i[357]|FX|A(6|10)[ |-]|Opteron|Athlon|Sempron|Pentium 4|Celeron)?", RegexOptions.Compiled);
 
-        public static Regex MCModelRegex = new Regex(@"(G?(E[35]( |-)?)?\d{4}[^vV]?)( ?[vV]\d)?", RegexOptions.Compiled);
+        public static Regex MCModelRegex = new Regex(@"E[35]( |-)?\d{4} ?[vV]\d", RegexOptions.Compiled);
+        public static Regex MCModelRegex2 = new Regex(@"[A-Z]?\d{4}([A-Za-z]){0,2}", RegexOptions.Compiled);
+        public static Regex MCModelRegex3 = new Regex(@"\d\.\dGHz", RegexOptions.Compiled);
 
-        public static Regex DiscountRegex = new Regex(@"\d{2}", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static Regex DiscountRegex = new Regex(@"\d{2}", RegexOptions.Compiled);
 
-        public static Regex CpuBenchBrandRegex = new Regex(@"(Intel|AMD|HP)?", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static Regex CpuBenchBrandRegex = new Regex(@"(Intel|AMD|HP)?", RegexOptions.Compiled);
 
-        public static Regex CpuBenchSeriesRegex = new Regex(@"i[357]|[FR]X[ |-]|Phenom II X?\d\d? |Opteron |(Athlon (X4|II X3 |64 )?)|(A(6|8|10|12)(PRO )?[ |-])|Turion (II Neo|X2 Ultra Dual-Core Mobile)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-        public static Regex CpuBenchModelRegex = new Regex(@"(\w\d{2}\w?|[A-Z]?(E[35]-)?\d{3,4}\w?|\d\w\d\d|TWKR|Hexa-Core|[a-z]{2}-\d\d)[a-z]{0,2}( v[1-5])?", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.ECMAScript);
+        public static Regex CpuBenchSeriesRegex = new Regex(@"i[357]|[[mM]\d?]|[FR]X[ |-]|Phenom II X?\d\d? |Opteron|Athlon (X4|II X3 |64 )?|A(6|8|10|12(PRO )?[ |-])|Turion (II Neo|X2)|Sempron|Pentium [45M]|Celeron", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+        public static Regex CpuBenchModelRegex = new Regex(@"E[35]-\d{4} v[1-5]", RegexOptions.Compiled);
+        public static Regex CpuBenchModelRegex2 = new Regex(@"([a-z]\d{2}[a-z]?|[A-Z]?\d{3,4}[A-Z]?|\d[A-Z]\d\d|TWKR|Hexa-Core)[a-z]{0,2}", RegexOptions.Compiled);
+        public static Regex CpuBenchModelRegex3 = new Regex(@"[A-Z]{1,2}-\d\d", RegexOptions.Compiled);
+        public static Regex CpuBenchModelRegex4 = new Regex(@"[A-Z]-[A-Z]\d\d[A-Z]", RegexOptions.Compiled);
+        public static Regex CpuBenchModelRegex5 = new Regex(@"\d\.\d[1-9]?GHz", RegexOptions.Compiled);
+        public static Regex CpuBenchModelRegex6 = new Regex(@"(\d\.\d)0?(GHz)", RegexOptions.Compiled);
     }
 
     class Printable
@@ -84,26 +94,74 @@ namespace cpuScraper
 
             Series = "";
 
-            for (var match = 0; match < matches.Count; ++match)
-                for (var group = 0; group < matches[match].Length; ++group)
-                    if (matches[match].Groups[group].Value.Length > Series.Length)
-                        Series = matches[match].Groups[group].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            for (var matchIdx = 0; matchIdx < matches.Count; ++matchIdx)
+                if (matches[matchIdx].Value.Length > Series.Length)
+                    Series = matches[matchIdx].Value.Replace(" ", "").Replace("-", "").ToUpper();
 
-            matches = Utils.MCModelRegex.Matches(Name);
+            //Series = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+
+            //matches = Utils.MCModelRegex.Matches(Name);
+
+            if (MCId == 430516)
+            {
+                Model = "6376";
+                return;
+            }
 
             Model = "";
 
+            //for (var match = 0; match < matches.Count; ++match)
+            //    if (matches[match].Value.Length > Model.Length)
+            //        Model = matches[match].Value.Replace(" ", "").Replace("-", "").ToUpper();
+
+            //if (matches.Count > 1)
+            //{
+            //Console.BackgroundColor = ConsoleColor.DarkCyan;
+            //Console.ForegroundColor = ConsoleColor.Cyan;
+            //Console.WriteLine(node.OuterHtml);
+            //Console.BackgroundColor = ConsoleColor.Black;
+            //Console.ForegroundColor = ConsoleColor.White;
+            //}
+
+            var modelRegexes = new List<Regex>
+            {
+                Utils.MCModelRegex,
+                Utils.MCModelRegex2,
+                Utils.MCModelRegex3
+            };
+
+            var match = false;
+
+            for (var regex = 0; regex < modelRegexes.Count && !match; ++regex)
+            {
+                matches = modelRegexes[regex].Matches(Name);
+                match = matches.Count > 0;
+
+                if (match)
+                    Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            }
+
             //if (matches.Count > 0)
             //{
-            for (var match = 0; match < matches.Count; ++match)
-                for (var group = 0; group < matches[match].Length; ++group)
-                    if (matches[match].Groups[group].Value.Length > Model.Length)
-                        Model = matches[match].Groups[group].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            //    Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
             //}
             //else
             //{
-            //    matches = Utils.PentiumRegex.Matches(Name);
-            //Model = matches[0].Groups[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            //    matches = Utils.MCModelRegex2.Matches(Name);
+
+            //    if (matches.Count > 0)
+            //    {
+            //        Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            //    }
+            //    else
+            //    {
+            //        matches = Utils.MCModelRegex3.Matches(Name);
+
+            //        if (matches.Count > 0)
+            //        {
+            //            Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+            //        }
+            //    }
             //}
 
             var discountNode = node.SelectNodes("descendant::div[@class='highlight clear']").First();
@@ -138,22 +196,51 @@ namespace cpuScraper
             //Console.WriteLine(node.OuterHtml);
             var nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rk')]/a");
 
-            Name = nameAnchor.InnerText;
+            if (nameAnchor != null)
+                Name = nameAnchor.InnerText;
+            else
+                throw new ArgumentNullException();
 
             MatchCollection matches = Utils.CpuBenchBrandRegex.Matches(nameAnchor.InnerText);
 
             //if (matches.Count > 0)
-            Brand = matches[0].Groups[0].Value;
+            Brand = matches[0].Value;
 
             matches = Utils.CpuBenchSeriesRegex.Matches(nameAnchor.InnerText);
 
-            //if (matches.Count > 0)
-            Series = matches[0].Groups[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
-
-            matches = Utils.CpuBenchModelRegex.Matches(nameAnchor.InnerText);
-
             if (matches.Count > 0)
-                Model = matches[0].Groups[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+                Series = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+
+            var modelRegexes = new List<Regex>
+            {
+                Utils.CpuBenchModelRegex,
+                Utils.CpuBenchModelRegex2,
+                Utils.CpuBenchModelRegex3,
+                Utils.CpuBenchModelRegex4,
+                Utils.CpuBenchModelRegex5
+            };
+
+            var match = false;
+
+            for (var regex = 0; regex < modelRegexes.Count && !match; ++regex)
+            {
+                matches = modelRegexes[regex].Matches(nameAnchor.InnerText);
+                match = matches.Count > 0;
+
+                if (match)
+                {
+                    Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
+                }
+            }
+
+            if (!match)
+            {
+                matches = Utils.CpuBenchModelRegex6.Matches(nameAnchor.InnerText);
+                match = matches.Count > 0;
+
+                if (match)
+                    Model = (matches[0].Groups[1].Value + matches[0].Groups[2].Value).Replace(" ", "").Replace("-", "").ToUpper();
+            }
 
             nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rt')]/div");
 
@@ -161,7 +248,12 @@ namespace cpuScraper
 
             if (string.IsNullOrWhiteSpace(Series) && string.IsNullOrWhiteSpace(Model))
             {
+                Console.BackgroundColor = ConsoleColor.DarkYellow;
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine(node.OuterHtml);
                 PrintConsole();
+                Console.BackgroundColor = ConsoleColor.Black;
+                Console.ForegroundColor = ConsoleColor.White;
                 throw new ArgumentNullException();
             }
 
@@ -253,49 +345,92 @@ namespace cpuScraper
                     pages = new List<string> {
                         "PassMark Intel vs AMD CPU Benchmarks - High End.html",
                         "PassMark CPU Benchmarks - High Mid Range CPUs.html" ,
-                        "PassMark CPU Benchmarks - Low Mid Range CPUs.html" };
+                        "PassMark CPU Benchmarks - Low Mid Range CPUs.html",
+                    "PassMark CPU Benchmarks - Low End CPUs.html"};
 
                     path = @"benchmarks.txt";
 
                     File.WriteAllText(path, string.Empty);
 
-                    // Create a file to write to.
-                    using (StreamWriter sw = File.CreateText(path))
+                    var sheetFile = new FileInfo(@"cpubench.xlsx");
+                    try
                     {
-                        foreach (var page in pages)
-                        {
-                            htmlDoc.Load(page);
-                            nodes = htmlDoc.DocumentNode.SelectNodes("//*[@id='mark']/table/tbody/tr");
-
-                            foreach (var node in nodes)
-                            {
-                                try
-                                {
-                                    var benchmark = new Benchmark(node);
-                                    benches.Add(benchmark);
-                                    sw.WriteLine(benchmark.Print());
-
-                                    var matchingCpus = mcCpus.Where(c => c.Model.Equals(benchmark.Model));
-
-                                    //if (matchingCpus.Count() > 1)
-                                    //    throw new ArgumentException();
-
-                                    foreach (var cpu in matchingCpus)
-                                        cpu.Benchmark = benchmark;
-
-                                }
-                                catch (Exception e)
-                                {
-                                    Console.BackgroundColor = ConsoleColor.DarkRed;
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.WriteLine(node.OuterHtml);
-                                    Console.WriteLine(e.ToString()+"\n");
-                                    Console.BackgroundColor = ConsoleColor.Black;
-                                    Console.ForegroundColor = ConsoleColor.White;
-                                }
-                            }
-                        }
+                        sheetFile.Delete();
                     }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.ToString());
+                        return;
+                    }
+
+                    using (var package = new ExcelPackage(sheetFile))
+                    {
+
+                        //Add the Content sheet
+                        var sheet = package.Workbook.Worksheets.Add("Content");
+
+                        sheet.Cells["A1"].Value = "Brand";
+                        sheet.Cells["B1"].Value = "Name";
+                        sheet.Cells["C1"].Value = "Bench";
+                        sheet.Cells["D1"].Value = "Price";
+                        sheet.Cells["E1"].Value = "Discount";
+
+                        var row = 2;
+
+                        // Create a file to write to.
+                        using (StreamWriter sw = File.CreateText(path))
+                        {
+                            foreach (var page in pages)
+                            {
+                                htmlDoc.Load(page);
+                                nodes = htmlDoc.DocumentNode.SelectNodes("//*[@id='mark']/table/tbody/tr");
+
+                                foreach (var node in nodes)
+                                {
+                                    try
+                                    {
+                                        var benchmark = new Benchmark(node);
+                                        benches.Add(benchmark);
+                                        sw.WriteLine(benchmark.Print());
+
+                                        var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
+                                        //var cpu = matchingCpus.FirstOrDefault();
+
+                                        //if (cpu == null) continue;
+                                        
+                                        foreach (var cpu in matchingCpus)
+                                        {
+                                            cpu.Benchmark = benchmark;
+
+                                            sheet.Cells[row, 1].Value = cpu.Brand;
+                                            sheet.Cells[row, 2].Value = cpu.Name;
+                                            sheet.Cells[row, 3].Value = cpu.Benchmark.Value;
+                                            sheet.Cells[row, 4].Value = cpu.Price;
+                                            sheet.Cells[row, 5].Value = cpu.Discount;
+
+                                            ++row;
+                                        }
+
+                                    }
+                                    catch (Exception e)
+                                    {
+                                        Console.BackgroundColor = ConsoleColor.DarkRed;
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.WriteLine(node.OuterHtml);
+                                        Console.WriteLine(e.ToString() + "\n");
+                                        Console.BackgroundColor = ConsoleColor.Black;
+                                        Console.ForegroundColor = ConsoleColor.White;
+                                    }
+                                } // page nodes
+                            } // bench pages
+                        } // bench file writer
+
+                        for (var col = 1; col < 6; ++col)
+                            sheet.Column(col).AutoFit();
+
+                        package.Save();
+                    }
+
 
                     break;
             }
