@@ -374,6 +374,8 @@ namespace cpuScraper
                         sheet.Cells["C1"].Value = "Bench";
                         sheet.Cells["D1"].Value = "Price";
                         sheet.Cells["E1"].Value = "Discount";
+                        sheet.Cells["F1"].Value = "Discounted Rounded Price";
+                        sheet.Cells["G1"].Value = "Pts/$";
 
                         var row = 2;
 
@@ -400,15 +402,20 @@ namespace cpuScraper
                                         
                                         foreach (var cpu in matchingCpus)
                                         {
-                                            cpu.Benchmark = benchmark;
+                                            if (cpu.Benchmark == null)
+                                            {
+                                                cpu.Benchmark = benchmark;
 
-                                            sheet.Cells[row, 1].Value = cpu.Brand;
-                                            sheet.Cells[row, 2].Value = cpu.Name;
-                                            sheet.Cells[row, 3].Value = cpu.Benchmark.Value;
-                                            sheet.Cells[row, 4].Value = cpu.Price;
-                                            sheet.Cells[row, 5].Value = cpu.Discount;
+                                                sheet.Cells[row, 1].Value = cpu.Brand;
+                                                sheet.Cells[row, 2].Value = cpu.Name;
+                                                sheet.Cells[row, 3].Value = cpu.Benchmark.Value;
+                                                sheet.Cells[row, 4].Value = cpu.Price;
+                                                sheet.Cells[row, 5].Value = cpu.Discount;
+                                                sheet.Cells[row, 6].Formula = "=MAX(ROUND(D" + row + ", 1)-E" + row+",1e-304)";
+                                                sheet.Cells[row, 7].Formula = "=ROUND(C" + row +"/F" + row+",1)";
 
-                                            ++row;
+                                                ++row;
+                                            }
                                         }
 
                                     }
@@ -425,7 +432,7 @@ namespace cpuScraper
                             } // bench pages
                         } // bench file writer
 
-                        for (var col = 1; col < 6; ++col)
+                        for (var col = 1; col < 7; ++col)
                             sheet.Column(col).AutoFit();
 
                         package.Save();
