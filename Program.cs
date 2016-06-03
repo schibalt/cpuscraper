@@ -33,29 +33,33 @@ namespace cpuScraper
         public static Regex CpuBenchModelRegex4 = new Regex(@"[A-Z]-[A-Z]\d\d[A-Z]", RegexOptions.Compiled);
         public static Regex CpuBenchModelRegex5 = new Regex(@"\d\.\d[1-9]?GHz", RegexOptions.Compiled);
         public static Regex CpuBenchModelRegex6 = new Regex(@"(\d\.\d)0?(GHz)", RegexOptions.Compiled);
-    }
 
-    class Printable
-    {
+        public enum BenchTypes { PassMark, FutureMark, PassMarkRanged };
 
-        public void PrintConsole()
+        public static ushort PassMarkCeiling = 25000;
+        public static ushort FutureMarkCeiling = 12000;
+
+        public static string[] NameNodeXPath = new string[] { "td[1]/a[2]", "td[3]/a[1]", "descendant::*[starts-with(@id,'rk')]/a" };
+        public static string[] ValueNodeXPath = new string[] { "td[3]", "td[5]/div/div", "descendant::*[starts-with(@id,'rt')]/div" };
+
+        public static void PrintConsole<T>(this T argument)
         {
-            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(this))
+            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(argument))
             {
                 string name = descriptor.Name;
-                object value = descriptor.GetValue(this);
+                object value = descriptor.GetValue(argument);
                 Console.WriteLine("{0}\t{1}", name, value);
             }
             //text += string.Format("\n");
         }
 
-        public string Print()
+        public static string Print<T>(this T argument)
         {
             var text = "";
-            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(this))
+            foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(argument))
             {
                 string name = descriptor.Name;
-                object value = descriptor.GetValue(this);
+                object value = descriptor.GetValue(argument);
                 text += string.Format("{0}\t{1}\r\n", name, value);
             }
             //text += string.Format("\n");
@@ -63,7 +67,8 @@ namespace cpuScraper
         }
     }
 
-    class Cpu : Printable
+
+    class Cpu
     {
         public uint MCId { get; set; }
 
@@ -79,11 +84,12 @@ namespace cpuScraper
 
         public byte Discount { get; set; }
 
-        public Benchmark Benchmark { get; set; }
+        public Benchmark PassMark { get; set; }
+
+        public Benchmark FutureMark { get; set; }
 
         public Cpu(HtmlNode node)
         {
-            //Console.WriteLine(node.OuterHtml);
             var anchor = node.SelectSingleNode("descendant::a[starts-with(@id,'hypProductH2_')]");
             MCId = Convert.ToUInt32(anchor.Attributes.Where(a => a.Name.Equals("data-id")).First().Value);
             Name = anchor.Attributes.Where(a => a.Name.Equals("data-name")).First().Value;
@@ -98,10 +104,6 @@ namespace cpuScraper
                 if (matches[matchIdx].Value.Length > Series.Length)
                     Series = matches[matchIdx].Value.Replace(" ", "").Replace("-", "").ToUpper();
 
-            //Series = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
-
-            //matches = Utils.MCModelRegex.Matches(Name);
-
             if (MCId == 430516)
             {
                 Model = "6376";
@@ -109,19 +111,6 @@ namespace cpuScraper
             }
 
             Model = "";
-
-            //for (var match = 0; match < matches.Count; ++match)
-            //    if (matches[match].Value.Length > Model.Length)
-            //        Model = matches[match].Value.Replace(" ", "").Replace("-", "").ToUpper();
-
-            //if (matches.Count > 1)
-            //{
-            //Console.BackgroundColor = ConsoleColor.DarkCyan;
-            //Console.ForegroundColor = ConsoleColor.Cyan;
-            //Console.WriteLine(node.OuterHtml);
-            //Console.BackgroundColor = ConsoleColor.Black;
-            //Console.ForegroundColor = ConsoleColor.White;
-            //}
 
             var modelRegexes = new List<Regex>
             {
@@ -141,29 +130,6 @@ namespace cpuScraper
                     Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
             }
 
-            //if (matches.Count > 0)
-            //{
-            //    Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
-            //}
-            //else
-            //{
-            //    matches = Utils.MCModelRegex2.Matches(Name);
-
-            //    if (matches.Count > 0)
-            //    {
-            //        Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
-            //    }
-            //    else
-            //    {
-            //        matches = Utils.MCModelRegex3.Matches(Name);
-
-            //        if (matches.Count > 0)
-            //        {
-            //            Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
-            //        }
-            //    }
-            //}
-
             var discountNode = node.SelectNodes("descendant::div[@class='highlight clear']").First();
 
             matches = Utils.DiscountRegex.Matches(discountNode.InnerText);
@@ -174,11 +140,10 @@ namespace cpuScraper
             if (string.IsNullOrWhiteSpace(Series) && string.IsNullOrWhiteSpace(Model))
                 throw new ArgumentException();
 
-            //Print();
         }
     }
 
-    class Benchmark : Printable
+    class Benchmark
     {
 
         public string Brand { get; set; }
@@ -191,19 +156,17 @@ namespace cpuScraper
 
         public ushort Value { get; set; }
 
-        public Benchmark(HtmlNode node)
+        public Benchmark(HtmlNode node, List<Benchmark> passMarks, Utils.BenchTypes type)
         {
-            //Console.WriteLine(node.OuterHtml);
-            var nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rk')]/a");
+            var nameAnchor = node.SelectSingleNode(Utils.NameNodeXPath[(int)type]);
 
             if (nameAnchor != null)
                 Name = nameAnchor.InnerText;
             else
-                throw new ArgumentNullException();
+                return;
 
             MatchCollection matches = Utils.CpuBenchBrandRegex.Matches(nameAnchor.InnerText);
 
-            //if (matches.Count > 0)
             Brand = matches[0].Value;
 
             matches = Utils.CpuBenchSeriesRegex.Matches(nameAnchor.InnerText);
@@ -242,7 +205,7 @@ namespace cpuScraper
                     Model = (matches[0].Groups[1].Value + matches[0].Groups[2].Value).Replace(" ", "").Replace("-", "").ToUpper();
             }
 
-            nameAnchor = node.SelectSingleNode("descendant::*[starts-with(@id,'rt')]/div");
+            nameAnchor = node.SelectSingleNode(Utils.ValueNodeXPath[(int)type]);
 
             Value = Convert.ToUInt16(nameAnchor.InnerText.Trim().Replace(",", ""));
 
@@ -251,13 +214,13 @@ namespace cpuScraper
                 Console.BackgroundColor = ConsoleColor.DarkYellow;
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine(node.OuterHtml);
-                PrintConsole();
+                this.PrintConsole();
                 Console.BackgroundColor = ConsoleColor.Black;
                 Console.ForegroundColor = ConsoleColor.White;
                 throw new ArgumentNullException();
             }
 
-            //Print();
+            passMarks.Add(this);
         }
     }
 
@@ -267,10 +230,12 @@ namespace cpuScraper
         {
             var htmlDoc = new HtmlDocument();
             var mcCpus = new List<Cpu>();
-            var benches = new List<Benchmark>();
+            var passMarks = new List<Benchmark>();
+            var futureMarks = new List<Benchmark>();
 
             switch (args[0])
             {
+                #region web
                 case "web":
                     var cookies = new CookieContainer();
                     using (var httpClient = new HttpClient(new HttpClientHandler
@@ -285,9 +250,9 @@ namespace cpuScraper
                         httpClient.Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite);
                         var requestUri = "http://www.microcenter.com/search/search_results.aspx?N=4294966995+4294964566+4294965455&page={0}";
 
-                        for (var page = 1; page < 4; page++)
+                        for (var microCtrPgNo = 1; microCtrPgNo < 4; microCtrPgNo++)
                         {
-                            var stream = httpClient.GetStreamAsync(string.Format(requestUri, page)).Result;
+                            var stream = httpClient.GetStreamAsync(string.Format(requestUri, microCtrPgNo)).Result;
 
                             // filePath is a path to a file containing the html
                             htmlDoc.Load(stream);
@@ -312,7 +277,10 @@ namespace cpuScraper
 
                     } // httpclient
                     break;
+                #endregion
                 case "file":
+
+                    #region microcenter
                     var pages = new List<string> {
                         "Intel _ AMD _ Processors_CPUs _ Computer Parts _ Micro Center.html",
                         "Intel _ AMD _ Processors_CPUs _ Computer Parts _ Micro Center2.html",
@@ -327,9 +295,9 @@ namespace cpuScraper
                     // Create a file to write to.
                     using (StreamWriter sw = File.CreateText(path))
                     {
-                        foreach (var page in pages)
+                        foreach (var microCenterPage in pages)
                         {
-                            htmlDoc.Load(page);
+                            htmlDoc.Load(microCenterPage);
 
                             nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
 
@@ -341,16 +309,107 @@ namespace cpuScraper
                             }
                         }
                     }
+                    #endregion
 
-                    pages = new List<string> {
-                        "PassMark Intel vs AMD CPU Benchmarks - High End.html",
-                        "PassMark CPU Benchmarks - High Mid Range CPUs.html" ,
-                        "PassMark CPU Benchmarks - Low Mid Range CPUs.html",
-                    "PassMark CPU Benchmarks - Low End CPUs.html"};
+                    #region passmark
+                    var page = "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm";
 
                     path = @"benchmarks.txt";
 
                     File.WriteAllText(path, string.Empty);
+
+                    // Create a file to write to.
+                    using (StreamWriter sw = File.CreateText(path))
+                    {
+                        htmlDoc.Load(page);
+                        nodes = htmlDoc.DocumentNode.SelectNodes("//descendant::table[@id='cputable']/tbody/tr");
+
+                        foreach (var node in nodes)
+                        {
+                            try
+                            {
+                                var benchmark = new Benchmark(node, passMarks, Utils.BenchTypes.PassMark);
+
+                                sw.WriteLine(benchmark.Print());
+
+                                var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
+                                //var cpu = matchingCpus.FirstOrDefault();
+
+                                //if (cpu == null) continue;
+
+                                foreach (var cpu in matchingCpus)
+                                {
+                                    if (cpu.PassMark == null)
+                                    {
+                                        cpu.PassMark = benchmark;
+
+                                    }
+                                }
+
+                            }
+                            catch (Exception e)
+                            {
+                                Console.BackgroundColor = ConsoleColor.DarkRed;
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine(node.OuterHtml);
+                                Console.WriteLine(e.ToString() + "\n");
+                                Console.BackgroundColor = ConsoleColor.Black;
+                                Console.ForegroundColor = ConsoleColor.White;
+                            }
+                        } // page nodes
+                    } // bench file writer
+                    #endregion
+
+                    #region futuremark
+                    page = "Best Processors June - 2016.htm";
+
+                    path = @"futuremarks.txt";
+
+                    File.WriteAllText(path, string.Empty);
+
+                    // Create a file to write to.
+                    using (StreamWriter sw = File.CreateText(path))
+                    {
+                        htmlDoc.Load(page);
+                        nodes = htmlDoc.DocumentNode.SelectNodes("//descendant::table[@id='productTable']/tbody/tr");
+
+                        foreach (var node in nodes)
+                        {
+                            try
+                            {
+                                var benchmark = new Benchmark(node, futureMarks, Utils.BenchTypes.FutureMark);
+
+                                sw.WriteLine(benchmark.Print());
+
+                                var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
+                                //var cpu = matchingCpus.FirstOrDefault();
+
+                                //if (cpu == null) continue;
+
+                                foreach (var cpu in matchingCpus)
+                                {
+                                    if (cpu.FutureMark == null)
+                                    {
+                                        cpu.FutureMark = benchmark;
+
+                                    }
+                                }
+
+                            }
+                            catch (Exception e)
+                            {
+                                Console.BackgroundColor = ConsoleColor.DarkRed;
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine(node.OuterHtml);
+                                Console.WriteLine(e.ToString() + "\n");
+                                Console.BackgroundColor = ConsoleColor.Black;
+                                Console.ForegroundColor = ConsoleColor.White;
+                            }
+                        } // page nodes
+                    } // bench file writer
+                    #endregion
+
+                    #region excel
 
                     var sheetFile = new FileInfo(@"cpubench.xlsx");
                     try
@@ -371,73 +430,35 @@ namespace cpuScraper
 
                         sheet.Cells["A1"].Value = "Brand";
                         sheet.Cells["B1"].Value = "Name";
-                        sheet.Cells["C1"].Value = "Bench";
-                        sheet.Cells["D1"].Value = "Price";
-                        sheet.Cells["E1"].Value = "Discount";
-                        sheet.Cells["F1"].Value = "Discounted Rounded Price";
-                        sheet.Cells["G1"].Value = "Pts/$";
+                        sheet.Cells["C1"].Value = "Price";
+                        sheet.Cells["D1"].Value = "Discount";
+                        sheet.Cells["E1"].Value = "Discounted Rounded Price";
+                        sheet.Cells["F1"].Value = "PassMark";
+                        sheet.Cells["G1"].Value = "FutureMark";
+                        sheet.Cells["H1"].Value = "Pts/$";
 
                         var row = 2;
 
-                        // Create a file to write to.
-                        using (StreamWriter sw = File.CreateText(path))
+                        foreach (var cpu in mcCpus)
                         {
-                            foreach (var page in pages)
-                            {
-                                htmlDoc.Load(page);
-                                nodes = htmlDoc.DocumentNode.SelectNodes("//*[@id='mark']/table/tbody/tr");
+                            sheet.Cells[row, 1].Value = cpu.Brand;
+                            sheet.Cells[row, 2].Value = cpu.Name;
+                            sheet.Cells[row, 3].Value = cpu.Price;
+                            sheet.Cells[row, 4].Value = cpu.Discount;
+                            sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
+                            sheet.Cells[row, 6].Value = cpu.PassMark.Value;
+                            if (cpu.FutureMark != null) sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
+                            sheet.Cells[row, 8].Formula = "=ROUND(C" + row + "/F" + row + ",1)";
 
-                                foreach (var node in nodes)
-                                {
-                                    try
-                                    {
-                                        var benchmark = new Benchmark(node);
-                                        benches.Add(benchmark);
-                                        sw.WriteLine(benchmark.Print());
+                            ++row;
+                        }
 
-                                        var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
-                                        //var cpu = matchingCpus.FirstOrDefault();
-
-                                        //if (cpu == null) continue;
-                                        
-                                        foreach (var cpu in matchingCpus)
-                                        {
-                                            if (cpu.Benchmark == null)
-                                            {
-                                                cpu.Benchmark = benchmark;
-
-                                                sheet.Cells[row, 1].Value = cpu.Brand;
-                                                sheet.Cells[row, 2].Value = cpu.Name;
-                                                sheet.Cells[row, 3].Value = cpu.Benchmark.Value;
-                                                sheet.Cells[row, 4].Value = cpu.Price;
-                                                sheet.Cells[row, 5].Value = cpu.Discount;
-                                                sheet.Cells[row, 6].Formula = "=MAX(ROUND(D" + row + ", 1)-E" + row+",1e-304)";
-                                                sheet.Cells[row, 7].Formula = "=ROUND(C" + row +"/F" + row+",1)";
-
-                                                ++row;
-                                            }
-                                        }
-
-                                    }
-                                    catch (Exception e)
-                                    {
-                                        Console.BackgroundColor = ConsoleColor.DarkRed;
-                                        Console.ForegroundColor = ConsoleColor.Red;
-                                        Console.WriteLine(node.OuterHtml);
-                                        Console.WriteLine(e.ToString() + "\n");
-                                        Console.BackgroundColor = ConsoleColor.Black;
-                                        Console.ForegroundColor = ConsoleColor.White;
-                                    }
-                                } // page nodes
-                            } // bench pages
-                        } // bench file writer
-
-                        for (var col = 1; col < 7; ++col)
+                        for (var col = 1; col < 8; ++col)
                             sheet.Column(col).AutoFit();
 
                         package.Save();
                     }
-
+                    #endregion
 
                     break;
             }
