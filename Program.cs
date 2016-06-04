@@ -84,9 +84,9 @@ namespace cpuScraper
 
         public byte Discount { get; set; }
 
-        public Benchmark PassMark { get; set; }
+        public Benchmark PassMark;
 
-        public Benchmark FutureMark { get; set; }
+        public Benchmark FutureMark;
 
         public Cpu(HtmlNode node)
         {
@@ -156,9 +156,9 @@ namespace cpuScraper
 
         public ushort Value { get; set; }
 
-        public Benchmark(HtmlNode node, List<Benchmark> passMarks, Utils.BenchTypes type)
+        public Benchmark(HtmlNode node, List<Benchmark> passMarks, int type)
         {
-            var nameAnchor = node.SelectSingleNode(Utils.NameNodeXPath[(int)type]);
+            var nameAnchor = node.SelectSingleNode(Utils.NameNodeXPath[type]);
 
             if (nameAnchor != null)
                 Name = nameAnchor.InnerText;
@@ -226,6 +226,14 @@ namespace cpuScraper
 
     class Program
     {
+        static void SetBenchmark(Benchmark benchmark, ref Benchmark toSet)
+        {
+            if (toSet == null)
+            {
+                toSet = benchmark;
+            }
+        }
+
         static void Main(string[] args)
         {
             var htmlDoc = new HtmlDocument();
@@ -311,102 +319,60 @@ namespace cpuScraper
                     }
                     #endregion
 
-                    #region passmark
-                    var page = "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm";
+                    #region read benchmarks
+                    pages = new List<string> { "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm", "Best Processors June - 2016.htm" };
 
-                    path = @"benchmarks.txt";
+                    var paths = new List<string> { "benchmarks.txt", "futuremarks.txt" };
+                    var benchContainerXPaths = new List<string> { "//descendant::table[@id='cputable']/tbody/tr", "//descendant::table[@id='productTable']/tbody/tr" };
 
-                    File.WriteAllText(path, string.Empty);
-
-                    // Create a file to write to.
-                    using (StreamWriter sw = File.CreateText(path))
+                    for (var page = 0; page < pages.Count; ++page)
                     {
-                        htmlDoc.Load(page);
-                        nodes = htmlDoc.DocumentNode.SelectNodes("//descendant::table[@id='cputable']/tbody/tr");
+                        File.WriteAllText(paths[page], string.Empty);
 
-                        foreach (var node in nodes)
+                        // Create a file to write to.
+                        using (StreamWriter sw = File.CreateText(paths[page]))
                         {
-                            try
+                            htmlDoc.Load(pages[page]);
+                            nodes = htmlDoc.DocumentNode.SelectNodes(benchContainerXPaths[page]);
+
+                            foreach (var node in nodes)
                             {
-                                var benchmark = new Benchmark(node, passMarks, Utils.BenchTypes.PassMark);
-
-                                sw.WriteLine(benchmark.Print());
-
-                                var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
-                                //var cpu = matchingCpus.FirstOrDefault();
-
-                                //if (cpu == null) continue;
-
-                                foreach (var cpu in matchingCpus)
+                                try
                                 {
-                                    if (cpu.PassMark == null)
-                                    {
-                                        cpu.PassMark = benchmark;
+                                    var benchmark = new Benchmark(node, passMarks, page);
 
+                                    sw.WriteLine(benchmark.Print());
+
+                                    var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
+                                    //var cpu = matchingCpus.FirstOrDefault();
+
+                                    //if (cpu == null) continue;
+
+                                    foreach (var cpu in matchingCpus)
+                                    {
+                                        switch (page)
+                                        {
+                                            case 0:
+                                                SetBenchmark(benchmark, ref cpu.PassMark);
+                                                break;
+                                            case 1:
+                                                SetBenchmark(benchmark, ref cpu.FutureMark);
+                                                break;
+                                        }
                                     }
                                 }
-
-                            }
-                            catch (Exception e)
-                            {
-                                Console.BackgroundColor = ConsoleColor.DarkRed;
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.WriteLine(node.OuterHtml);
-                                Console.WriteLine(e.ToString() + "\n");
-                                Console.BackgroundColor = ConsoleColor.Black;
-                                Console.ForegroundColor = ConsoleColor.White;
-                            }
-                        } // page nodes
-                    } // bench file writer
-                    #endregion
-
-                    #region futuremark
-                    page = "Best Processors June - 2016.htm";
-
-                    path = @"futuremarks.txt";
-
-                    File.WriteAllText(path, string.Empty);
-
-                    // Create a file to write to.
-                    using (StreamWriter sw = File.CreateText(path))
-                    {
-                        htmlDoc.Load(page);
-                        nodes = htmlDoc.DocumentNode.SelectNodes("//descendant::table[@id='productTable']/tbody/tr");
-
-                        foreach (var node in nodes)
-                        {
-                            try
-                            {
-                                var benchmark = new Benchmark(node, futureMarks, Utils.BenchTypes.FutureMark);
-
-                                sw.WriteLine(benchmark.Print());
-
-                                var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
-                                //var cpu = matchingCpus.FirstOrDefault();
-
-                                //if (cpu == null) continue;
-
-                                foreach (var cpu in matchingCpus)
+                                catch (Exception e)
                                 {
-                                    if (cpu.FutureMark == null)
-                                    {
-                                        cpu.FutureMark = benchmark;
-
-                                    }
+                                    Console.BackgroundColor = ConsoleColor.DarkRed;
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine(node.OuterHtml);
+                                    Console.WriteLine(e.ToString() + "\n");
+                                    Console.BackgroundColor = ConsoleColor.Black;
+                                    Console.ForegroundColor = ConsoleColor.White;
                                 }
-
-                            }
-                            catch (Exception e)
-                            {
-                                Console.BackgroundColor = ConsoleColor.DarkRed;
-                                Console.ForegroundColor = ConsoleColor.Red;
-                                Console.WriteLine(node.OuterHtml);
-                                Console.WriteLine(e.ToString() + "\n");
-                                Console.BackgroundColor = ConsoleColor.Black;
-                                Console.ForegroundColor = ConsoleColor.White;
-                            }
-                        } // page nodes
-                    } // bench file writer
+                            } // page nodes
+                        } // bench file writer
+                    }
                     #endregion
 
                     #region excel
