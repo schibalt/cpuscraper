@@ -39,8 +39,25 @@ namespace cpuScraper
         public static ushort PassMarkCeiling = 25000;
         public static ushort FutureMarkCeiling = 12000;
 
-        public static string[] NameNodeXPath = new string[] { "td[1]/a[2]", "td[3]/a[1]", "descendant::*[starts-with(@id,'rk')]/a" };
-        public static string[] ValueNodeXPath = new string[] { "td[3]", "td[5]/div/div", "descendant::*[starts-with(@id,'rt')]/div" };
+        public static string[] NameNodeXPath = new string[]
+        {
+            "td[1]/a[2]",
+            "td[3]/a[1]",
+
+            "td[1]"
+        };
+
+        public static string passmarkRangedPageNameNodePath = "descendant::*[starts-with(@id,'rk')]/a";
+
+        public static string[] ValueNodeXPath = new string[]
+        {
+            "td[3]",
+            "td[5]/div/div",
+
+            "td[2]"
+        };
+
+        public static string passmarkRangedPageValueNodePath = "descendant::*[starts-with(@id,'rt')]/div";
 
         public static void PrintConsole<T>(this T argument)
         {
@@ -87,6 +104,8 @@ namespace cpuScraper
         public Benchmark PassMark;
 
         public Benchmark FutureMark;
+
+        public Benchmark Geekbench;
 
         public Cpu(HtmlNode node)
         {
@@ -241,11 +260,49 @@ namespace cpuScraper
             var passMarks = new List<Benchmark>();
             var futureMarks = new List<Benchmark>();
 
-            switch (args[0])
+            var pages = new List<string>
             {
-                #region web
-                case "web":
+                        "Processors_CPUs   Computer Parts   Micro Center.htm",
+                        "Processors_CPUs   Computer Parts   Micro Center2.htm",
+                        "Processors_CPUs   Computer Parts   Micro Center3.htm"
+            };
+
+            var webpages = new List<string>
+            {
+                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=1",
+                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=2",
+                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=3"
+            };
+
+            #region read benchmarks
+
+            var paths = new List<string>
+                    {
+                        "benchmarks.txt",
+                        "futuremarks.txt",
+                        "geekbench.txt"
+                    };
+            var benchContainerXPaths = new List<string>
+                    {
+                        "//descendant::table[@id='cputable']/tbody/tr",
+                        "//descendant::table[@id='productTable']/tbody/tr",
+                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr"
+                    };
+
+            HtmlNodeCollection nodes = null;
+            string path = @"mccpus.txt";
+
+            File.WriteAllText(path, string.Empty);
+
+            var useWeb = args[0].Equals("web");
+
+            // Create a file to write to.
+            using (StreamWriter sw = File.CreateText(path))
+            {
+                if (useWeb)
+                {
                     var cookies = new CookieContainer();
+
                     using (var httpClient = new HttpClient(new HttpClientHandler
                     {
                         UseDefaultCredentials = true,
@@ -256,7 +313,7 @@ namespace cpuScraper
                         cookies.Add(uri, new Cookie("storeSelected", "051"));
                         cookies.Add(uri, new Cookie("ipp", "25"));
                         httpClient.Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite);
-                        var requestUri = "http://www.microcenter.com/search/search_results.aspx?N=4294966995+4294964566+4294965455&page={0}";
+                        var requestUri = "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page={0}";
 
                         for (var microCtrPgNo = 1; microCtrPgNo < 4; microCtrPgNo++)
                         {
@@ -265,169 +322,169 @@ namespace cpuScraper
                             // filePath is a path to a file containing the html
                             htmlDoc.Load(stream);
 
-                            // Use:  htmlDoc.LoadHtml(xmlString);  to load from a string (was htmlDoc.LoadXML(xmlString)
-
-                            // ParseErrors is an ArrayList containing any errors from the Load statement
-                            if (htmlDoc.ParseErrors != null && htmlDoc.ParseErrors.Count() > 0)
-                            {
-                                // Handle any parse errors as required
-
-                            }
-
-                            if (htmlDoc.DocumentNode != null)
-                            {
-                                mcCpus = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']").ToList().ConvertAll(n => new Cpu(n));
-
-                                mcCpus.AddRange(mcCpus);
-
-                            }
                         } // iterate pages
 
                     } // httpclient
-                    break;
-                #endregion
-                case "file":
-
-                    #region microcenter
-                    var pages = new List<string> {
-                        "Intel _ AMD _ Processors_CPUs _ Computer Parts _ Micro Center.html",
-                        "Intel _ AMD _ Processors_CPUs _ Computer Parts _ Micro Center2.html",
-                        "Intel _ AMD _ Processors_CPUs _ Computer Parts _ Micro Center3.html" };
-
-                    HtmlNodeCollection nodes = null;
-
-                    string path = @"mccpus.txt";
-
-                    File.WriteAllText(path, string.Empty);
-
-                    // Create a file to write to.
-                    using (StreamWriter sw = File.CreateText(path))
+                }
+                else
+                {
+                    foreach (var microCenterPage in pages)
                     {
-                        foreach (var microCenterPage in pages)
+                        htmlDoc.Load(microCenterPage);
+
+                    }
+                }
+
+                nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
+
+                foreach (var node in nodes)
+                {
+                    var cpu = new Cpu(node);
+                    mcCpus.Add(cpu);
+                    sw.WriteLine(cpu.Print());
+                }
+            }
+
+            pages = new List<string>
+                    {
+                        "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm",
+                        "Best Processors June - 2016.htm",
+                        "Processor Benchmarks - Geekbench Browser.htm"
+                    };
+
+            webpages = new List<string>
+                    {
+                        "https://www.cpubenchmark.net/CPU_mega_page.html",
+                        "http://www.futuremark.com/hardware/cpu",
+                        "https://browser.primatelabs.com/processor-benchmarks"
+                    };
+
+            for (var page = 0; page < pages.Count; ++page)
+            {
+                File.WriteAllText(paths[page], string.Empty);
+
+                // Create a file to write to.
+                using (StreamWriter sw = File.CreateText(paths[page]))
+                {
+                    if (useWeb)
+                    {
+                        using (var httpClient = new HttpClient(new HttpClientHandler
                         {
-                            htmlDoc.Load(microCenterPage);
+                            UseDefaultCredentials = true
+                        }))
+                        {
+                            var stream = httpClient.GetStreamAsync(webpages[page]).Result;
 
-                            nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
+                            // filePath is a path to a file containing the html
+                            htmlDoc.Load(stream);
 
-                            foreach (var node in nodes)
+                        } // httpclient
+                    }
+                    else
+                    {
+                        htmlDoc.Load(pages[page]);
+                    }
+                    nodes = htmlDoc.DocumentNode.SelectNodes(benchContainerXPaths[page]);
+
+                    foreach (var node in nodes)
+                    {
+                        try
+                        {
+                            var benchmark = new Benchmark(node, passMarks, page);
+
+                            sw.WriteLine(benchmark.Print());
+
+                            var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
+                            //var cpu = matchingCpus.FirstOrDefault();
+
+                            //if (cpu == null) continue;
+
+                            foreach (var cpu in matchingCpus)
                             {
-                                var cpu = new Cpu(node);
-                                mcCpus.Add(cpu);
-                                sw.WriteLine(cpu.Print());
+                                switch (page)
+                                {
+                                    case 0:
+                                        SetBenchmark(benchmark, ref cpu.PassMark);
+                                        break;
+                                    case 1:
+                                        SetBenchmark(benchmark, ref cpu.FutureMark);
+                                        break;
+                                    case 2:
+                                        SetBenchmark(benchmark, ref cpu.Geekbench);
+                                        break;
+                                }
                             }
                         }
-                    }
-                    #endregion
-
-                    #region read benchmarks
-                    pages = new List<string> { "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm", "Best Processors June - 2016.htm" };
-
-                    var paths = new List<string> { "benchmarks.txt", "futuremarks.txt" };
-                    var benchContainerXPaths = new List<string> { "//descendant::table[@id='cputable']/tbody/tr", "//descendant::table[@id='productTable']/tbody/tr" };
-
-                    for (var page = 0; page < pages.Count; ++page)
-                    {
-                        File.WriteAllText(paths[page], string.Empty);
-
-                        // Create a file to write to.
-                        using (StreamWriter sw = File.CreateText(paths[page]))
+                        catch (Exception e)
                         {
-                            htmlDoc.Load(pages[page]);
-                            nodes = htmlDoc.DocumentNode.SelectNodes(benchContainerXPaths[page]);
-
-                            foreach (var node in nodes)
-                            {
-                                try
-                                {
-                                    var benchmark = new Benchmark(node, passMarks, page);
-
-                                    sw.WriteLine(benchmark.Print());
-
-                                    var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
-                                    //var cpu = matchingCpus.FirstOrDefault();
-
-                                    //if (cpu == null) continue;
-
-                                    foreach (var cpu in matchingCpus)
-                                    {
-                                        switch (page)
-                                        {
-                                            case 0:
-                                                SetBenchmark(benchmark, ref cpu.PassMark);
-                                                break;
-                                            case 1:
-                                                SetBenchmark(benchmark, ref cpu.FutureMark);
-                                                break;
-                                        }
-                                    }
-                                }
-                                catch (Exception e)
-                                {
-                                    Console.BackgroundColor = ConsoleColor.DarkRed;
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.WriteLine(node.OuterHtml);
-                                    Console.WriteLine(e.ToString() + "\n");
-                                    Console.BackgroundColor = ConsoleColor.Black;
-                                    Console.ForegroundColor = ConsoleColor.White;
-                                }
-                            } // page nodes
-                        } // bench file writer
-                    }
-                    #endregion
-
-                    #region excel
-
-                    var sheetFile = new FileInfo(@"cpubench.xlsx");
-                    try
-                    {
-                        sheetFile.Delete();
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(e.ToString());
-                        return;
-                    }
-
-                    using (var package = new ExcelPackage(sheetFile))
-                    {
-
-                        //Add the Content sheet
-                        var sheet = package.Workbook.Worksheets.Add("Content");
-
-                        sheet.Cells["A1"].Value = "Brand";
-                        sheet.Cells["B1"].Value = "Name";
-                        sheet.Cells["C1"].Value = "Price";
-                        sheet.Cells["D1"].Value = "Discount";
-                        sheet.Cells["E1"].Value = "Discounted Rounded Price";
-                        sheet.Cells["F1"].Value = "PassMark";
-                        sheet.Cells["G1"].Value = "FutureMark";
-                        sheet.Cells["H1"].Value = "Pts/$";
-
-                        var row = 2;
-
-                        foreach (var cpu in mcCpus)
-                        {
-                            sheet.Cells[row, 1].Value = cpu.Brand;
-                            sheet.Cells[row, 2].Value = cpu.Name;
-                            sheet.Cells[row, 3].Value = cpu.Price;
-                            sheet.Cells[row, 4].Value = cpu.Discount;
-                            sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
-                            sheet.Cells[row, 6].Value = cpu.PassMark.Value;
-                            if (cpu.FutureMark != null) sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
-                            sheet.Cells[row, 8].Formula = "=ROUND(C" + row + "/F" + row + ",1)";
-
-                            ++row;
+                            Console.BackgroundColor = ConsoleColor.DarkRed;
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine(node.OuterHtml);
+                            Console.WriteLine(e.ToString() + "\n");
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
                         }
-
-                        for (var col = 1; col < 8; ++col)
-                            sheet.Column(col).AutoFit();
-
-                        package.Save();
-                    }
-                    #endregion
-
-                    break;
+                    } // page nodes
+                } // bench file writer
             }
+            #endregion
+
+            #region excel
+
+            var sheetFile = new FileInfo(@"cpubench.xlsx");
+            try
+            {
+                sheetFile.Delete();
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return;
+            }
+
+            using (var package = new ExcelPackage(sheetFile))
+            {
+
+                //Add the Content sheet
+                var sheet = package.Workbook.Worksheets.Add("Content");
+
+                sheet.Cells["A1"].Value = "Brand";
+                sheet.Cells["B1"].Value = "Name";
+                sheet.Cells["C1"].Value = "Price";
+                sheet.Cells["D1"].Value = "Discount";
+                sheet.Cells["E1"].Value = "Discounted Rounded Price";
+                sheet.Cells["F1"].Value = "PassMark";
+                sheet.Cells["G1"].Value = "FutureMark";
+                sheet.Cells["H1"].Value = "Geekbench";
+                sheet.Cells["I1"].Value = "PassMarks/$";
+                sheet.Cells["J1"].Value = "FutureMarks/$";
+                sheet.Cells["K1"].Value = "Geekbench/$";
+
+                var row = 2;
+
+                foreach (var cpu in mcCpus)
+                {
+                    sheet.Cells[row, 1].Value = cpu.Brand;
+                    sheet.Cells[row, 2].Value = cpu.Name;
+                    sheet.Cells[row, 3].Value = cpu.Price;
+                    sheet.Cells[row, 4].Value = cpu.Discount;
+                    sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
+                    if (cpu.PassMark != null) sheet.Cells[row, 6].Value = cpu.PassMark.Value;
+                    if (cpu.FutureMark != null) sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
+                    if (cpu.Geekbench != null) sheet.Cells[row, 8].Value = cpu.Geekbench.Value;
+                    sheet.Cells[row, 9].Formula = "=ROUND(F" + row + "/E" + row + ",1)";
+                    sheet.Cells[row, 10].Formula = "=ROUND(G" + row + "/E" + row + ",1)";
+                    sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
+
+                    ++row;
+                }
+
+                for (var col = 1; col < 8; ++col)
+                    sheet.Column(col).AutoFit();
+
+                package.Save();
+            }
+            #endregion
         }
     }
 }
