@@ -282,12 +282,6 @@ namespace cpuScraper
                         "futuremarks.txt",
                         "geekbench.txt"
                     };
-            var benchContainerXPaths = new List<string>
-                    {
-                        "//descendant::table[@id='cputable']/tbody/tr",
-                        "//descendant::table[@id='productTable']/tbody/tr",
-                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr"
-                    };
 
             HtmlNodeCollection nodes = null;
             string path = @"mccpus.txt";
@@ -299,50 +293,46 @@ namespace cpuScraper
             // Create a file to write to.
             using (StreamWriter sw = File.CreateText(path))
             {
-                if (useWeb)
+                        var cookies = new CookieContainer();
+                            var uri = new Uri("http://www.microcenter.com");
+                            cookies.Add(uri, new Cookie("storeSelected", "051"));
+                            cookies.Add(uri, new Cookie("ipp", "25"));
+
+                for (var microCtrPgNo = 0; microCtrPgNo < 3; microCtrPgNo++)
                 {
-                    var cookies = new CookieContainer();
-
-                    using (var httpClient = new HttpClient(new HttpClientHandler
+                    if (useWeb)
                     {
-                        UseDefaultCredentials = true,
-                        CookieContainer = cookies
-                    }))
-                    {
-                        var uri = new Uri("http://www.microcenter.com");
-                        cookies.Add(uri, new Cookie("storeSelected", "051"));
-                        cookies.Add(uri, new Cookie("ipp", "25"));
-                        httpClient.Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite);
-                        var requestUri = "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page={0}";
 
-                        for (var microCtrPgNo = 1; microCtrPgNo < 4; microCtrPgNo++)
+                        using (var httpClient = new HttpClient(new HttpClientHandler
                         {
-                            var stream = httpClient.GetStreamAsync(string.Format(requestUri, microCtrPgNo)).Result;
+                            UseDefaultCredentials = true,
+                            CookieContainer = cookies
+                        }))
+                        {
+                            httpClient.Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite);
+
+                            var stream = httpClient.GetStreamAsync(webpages[microCtrPgNo]).Result;
 
                             // filePath is a path to a file containing the html
                             htmlDoc.Load(stream);
 
-                        } // iterate pages
 
-                    } // httpclient
-                }
-                else
-                {
-                    foreach (var microCenterPage in pages)
-                    {
-                        htmlDoc.Load(microCenterPage);
-
+                        } // httpclient
                     }
-                }
+                    else
+                    {
+                        htmlDoc.Load(pages[microCtrPgNo]);
+                    }
 
-                nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
+                    nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
 
-                foreach (var node in nodes)
-                {
-                    var cpu = new Cpu(node);
-                    mcCpus.Add(cpu);
-                    sw.WriteLine(cpu.Print());
-                }
+                    foreach (var node in nodes)
+                    {
+                        var cpu = new Cpu(node);
+                        mcCpus.Add(cpu);
+                        sw.WriteLine(cpu.Print());
+                    }
+                } // iterate pages
             }
 
             pages = new List<string>
@@ -355,8 +345,16 @@ namespace cpuScraper
             webpages = new List<string>
                     {
                         "https://www.cpubenchmark.net/CPU_mega_page.html",
-                        "http://www.futuremark.com/hardware/cpu",
+                        "http://www.futuremark.com/hwc/hwcenter/page-main.php?type=cpu&filters=desktop,mobile,server",
                         "https://browser.primatelabs.com/processor-benchmarks"
+                    };
+            
+            var benchContainerXPaths = new List<string>
+                    {
+                        "//descendant::table[@id='cputable']/tbody/tr",
+                        "//*[@id=\"productTable\"]/tr",
+                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr",
+                        "//descendant::table[@id='productTable']/tbody/tr"
                     };
 
             for (var page = 0; page < pages.Count; ++page)
