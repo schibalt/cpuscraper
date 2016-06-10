@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -81,6 +82,41 @@ namespace cpuScraper
             }
             //text += string.Format("\n");
             return text;
+        }
+
+        public static void ColorToHSV(Color color, out double hue, out double saturation, out double value)
+        {
+            int max = Math.Max(color.R, Math.Max(color.G, color.B));
+            int min = Math.Min(color.R, Math.Min(color.G, color.B));
+
+            hue = color.GetHue();
+            saturation = (max == 0) ? 0 : 1d - (1d * min / max);
+            value = max / 255d;
+        }
+
+        public static Color ColorFromHSV(double hue, double saturation, double value)
+        {
+            int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
+            double f = hue / 60 - Math.Floor(hue / 60);
+
+            value = value * 255;
+            int v = Convert.ToInt32(value);
+            int p = Convert.ToInt32(value * (1 - saturation));
+            int q = Convert.ToInt32(value * (1 - f * saturation));
+            int t = Convert.ToInt32(value * (1 - (1 - f) * saturation));
+
+            if (hi == 0)
+                return Color.FromArgb(255, v, t, p);
+            else if (hi == 1)
+                return Color.FromArgb(255, q, v, p);
+            else if (hi == 2)
+                return Color.FromArgb(255, p, v, t);
+            else if (hi == 3)
+                return Color.FromArgb(255, p, q, v);
+            else if (hi == 4)
+                return Color.FromArgb(255, t, p, v);
+            else
+                return Color.FromArgb(255, v, p, q);
         }
     }
 
@@ -293,10 +329,10 @@ namespace cpuScraper
             // Create a file to write to.
             using (StreamWriter sw = File.CreateText(path))
             {
-                        var cookies = new CookieContainer();
-                            var uri = new Uri("http://www.microcenter.com");
-                            cookies.Add(uri, new Cookie("storeSelected", "051"));
-                            cookies.Add(uri, new Cookie("ipp", "25"));
+                var cookies = new CookieContainer();
+                var uri = new Uri("http://www.microcenter.com");
+                cookies.Add(uri, new Cookie("storeSelected", "051"));
+                cookies.Add(uri, new Cookie("ipp", "25"));
 
                 for (var microCtrPgNo = 0; microCtrPgNo < 3; microCtrPgNo++)
                 {
@@ -348,13 +384,20 @@ namespace cpuScraper
                         "http://www.futuremark.com/hwc/hwcenter/page-main.php?type=cpu&filters=desktop,mobile,server",
                         "https://browser.primatelabs.com/processor-benchmarks"
                     };
-            
+
             var benchContainerXPaths = new List<string>
                     {
                         "//descendant::table[@id='cputable']/tbody/tr",
+                        "//descendant::table[@id='productTable']/tbody/tr",
+                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr"
+
+                    };
+
+            var benchContainerWebXPaths = new List<string>
+                    {
+                        "//descendant::table[@id='cputable']/tbody/tr",
                         "//*[@id=\"productTable\"]/tr",
-                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr",
-                        "//descendant::table[@id='productTable']/tbody/tr"
+                        "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr"
                     };
 
             for (var page = 0; page < pages.Count; ++page)
@@ -382,7 +425,7 @@ namespace cpuScraper
                     {
                         htmlDoc.Load(pages[page]);
                     }
-                    nodes = htmlDoc.DocumentNode.SelectNodes(benchContainerXPaths[page]);
+                    nodes = htmlDoc.DocumentNode.SelectNodes(useWeb ? benchContainerWebXPaths[page] : benchContainerXPaths[page]);
 
                     foreach (var node in nodes)
                     {
@@ -460,16 +503,56 @@ namespace cpuScraper
 
                 var row = 2;
 
+                var priceMin = mcCpus.Min(c => c.Price);
+                var priceMax = mcCpus.Max(c => c.Price);
+                //var priceMin = mcCpus.Where(c => c.Price < 800).Min(c => c.Price);
+                //var priceMax = mcCpus.Where(c => c.Price < 800).Max(c => c.Price);
+                var priceRange = priceMax - priceMin;
+
                 foreach (var cpu in mcCpus)
                 {
                     sheet.Cells[row, 1].Value = cpu.Brand;
                     sheet.Cells[row, 2].Value = cpu.Name;
                     sheet.Cells[row, 3].Value = cpu.Price;
+                    sheet.Cells[row, 3].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    var coefficient = (cpu.Price - priceMin) / priceRange;
+                    coefficient = Math.Max(coefficient, 0);
+                    coefficient = Math.Min(coefficient, 1);
+                    int red, green;
+
+                    if (coefficient < .25m)
+                    {
+                        red = 0;
+                        green = (int)(510 * coefficient);
+                        green += 128;
+                    }
+                    else if (coefficient < .5m)
+                    {
+                        red = (int)(coefficient * 510);
+                        green = 255;
+                    }
+                    else
+                    {
+                        red = 255;
+                        green = 255 - (int)(255 * coefficient);
+                    }
+                    var color = Color.FromArgb(red, green, 0);
+
+                    sheet.Cells[row, 3].Style.Fill.BackgroundColor.SetColor(color);
                     sheet.Cells[row, 4].Value = cpu.Discount;
                     sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
-                    if (cpu.PassMark != null) sheet.Cells[row, 6].Value = cpu.PassMark.Value;
-                    if (cpu.FutureMark != null) sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
-                    if (cpu.Geekbench != null) sheet.Cells[row, 8].Value = cpu.Geekbench.Value;
+                    if (cpu.PassMark != null)
+                    {
+                        sheet.Cells[row, 6].Value = cpu.PassMark.Value;
+                    }
+                    if (cpu.FutureMark != null)
+                    {
+                        sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
+                    }
+                    if (cpu.Geekbench != null)
+                    {
+                        sheet.Cells[row, 8].Value = cpu.Geekbench.Value;
+                    }
                     sheet.Cells[row, 9].Formula = "=ROUND(F" + row + "/E" + row + ",1)";
                     sheet.Cells[row, 10].Formula = "=ROUND(G" + row + "/E" + row + ",1)";
                     sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
