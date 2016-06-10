@@ -84,40 +84,6 @@ namespace cpuScraper
             return text;
         }
 
-        public static void ColorToHSV(Color color, out double hue, out double saturation, out double value)
-        {
-            int max = Math.Max(color.R, Math.Max(color.G, color.B));
-            int min = Math.Min(color.R, Math.Min(color.G, color.B));
-
-            hue = color.GetHue();
-            saturation = (max == 0) ? 0 : 1d - (1d * min / max);
-            value = max / 255d;
-        }
-
-        public static Color ColorFromHSV(double hue, double saturation, double value)
-        {
-            int hi = Convert.ToInt32(Math.Floor(hue / 60)) % 6;
-            double f = hue / 60 - Math.Floor(hue / 60);
-
-            value = value * 255;
-            int v = Convert.ToInt32(value);
-            int p = Convert.ToInt32(value * (1 - saturation));
-            int q = Convert.ToInt32(value * (1 - f * saturation));
-            int t = Convert.ToInt32(value * (1 - (1 - f) * saturation));
-
-            if (hi == 0)
-                return Color.FromArgb(255, v, t, p);
-            else if (hi == 1)
-                return Color.FromArgb(255, q, v, p);
-            else if (hi == 2)
-                return Color.FromArgb(255, p, v, t);
-            else if (hi == 3)
-                return Color.FromArgb(255, p, q, v);
-            else if (hi == 4)
-                return Color.FromArgb(255, t, p, v);
-            else
-                return Color.FromArgb(255, v, p, q);
-        }
     }
 
 
@@ -142,6 +108,10 @@ namespace cpuScraper
         public Benchmark FutureMark;
 
         public Benchmark Geekbench;
+
+        public bool FlaggedForPurchase { get; set; }
+
+        public bool Skip { get; set; }
 
         public Cpu(HtmlNode node)
         {
@@ -195,6 +165,7 @@ namespace cpuScraper
             if (string.IsNullOrWhiteSpace(Series) && string.IsNullOrWhiteSpace(Model))
                 throw new ArgumentException();
 
+            Skip = Series == "FX" && Model == "9590";
         }
     }
 
@@ -500,63 +471,117 @@ namespace cpuScraper
                 sheet.Cells["I1"].Value = "PassMarks/$";
                 sheet.Cells["J1"].Value = "FutureMarks/$";
                 sheet.Cells["K1"].Value = "Geekbench/$";
+                sheet.Cells["L1"].Value = "Flagged";
 
                 var row = 2;
 
+                mcCpus = mcCpus.Where(c => c.PassMark.Value > 4000 && Math.Round(c.Price) < 900).ToList();
+                //mcCpus = mcCpus.OrderByDescending(c => c.PassMark.Value / (c.Price - c.Discount)).ToList();
+
+                var passmark = 0;
+
+                foreach(var cpu in mcCpus)
+                    if(cpu.PassMark.Value > passmark && !cpu.Skip)
+                    {
+                        cpu.FlaggedForPurchase = true;
+                        passmark = cpu.PassMark.Value;
+                    }
+
                 var priceMin = mcCpus.Min(c => c.Price);
                 var priceMax = mcCpus.Max(c => c.Price);
-                //var priceMin = mcCpus.Where(c => c.Price < 800).Min(c => c.Price);
-                //var priceMax = mcCpus.Where(c => c.Price < 800).Max(c => c.Price);
                 var priceRange = priceMax - priceMin;
+
+                var discountMin = mcCpus.Min(c => c.Discount);
+                var discountMax = mcCpus.Max(c => c.Discount);
+                var discountRange = discountMax - discountMin;
+
+                var drpMin = mcCpus.Min(c => c.Price - c.Discount);
+                var drpMax = mcCpus.Max(c => c.Price - c.Discount);
+                var drpRange = drpMax - drpMin;
+
+                var passmarkMin = mcCpus.Min(c => c.PassMark.Value);
+                var passmarkMax = mcCpus.Max(c => c.PassMark.Value);
+                var passmarkRange = passmarkMax - passmarkMin;
+
+                var futuremarkCpus = mcCpus.Where(c => c.FutureMark != null);
+                var futuremarkMin = futuremarkCpus.Min(c => c.FutureMark.Value);
+                var futuremarkMax = futuremarkCpus.Max(c => c.FutureMark.Value);
+                var futuremarkRange = futuremarkMax - futuremarkMin;
+
+                var geekbenchCpus = mcCpus.Where(c => c.Geekbench != null);
+                var geekbenchMin = geekbenchCpus.Min(c => c.Geekbench.Value);
+                var geekbenchMax = geekbenchCpus.Max(c => c.Geekbench.Value);
+                var geekbenchRange = geekbenchMax - geekbenchMin;
+
+                var passmarkValueMin = mcCpus.Min(c => c.PassMark.Value / (c.Price - c.Discount));
+                var passmarkValueMax = mcCpus.Max(c => c.PassMark.Value / (c.Price - c.Discount));
+                var passmarkValueRange = passmarkValueMax - passmarkValueMin;
+
+                var futuremarkValueMin = futuremarkCpus.Min(c => c.FutureMark.Value / (c.Price - c.Discount));
+                var futuremarkValueMax = futuremarkCpus.Max(c => c.FutureMark.Value / (c.Price - c.Discount));
+                var futuremarkValueRange = futuremarkValueMax - futuremarkValueMin;
+
+                var geekbenchValueMin = geekbenchCpus.Min(c => c.Geekbench.Value / (c.Price - c.Discount));
+                var geekbenchValueMax = geekbenchCpus.Max(c => c.Geekbench.Value / (c.Price - c.Discount));
+                var geekbenchValueRange = geekbenchValueMax - geekbenchValueMin;
 
                 foreach (var cpu in mcCpus)
                 {
                     sheet.Cells[row, 1].Value = cpu.Brand;
+
                     sheet.Cells[row, 2].Value = cpu.Name;
+
                     sheet.Cells[row, 3].Value = cpu.Price;
                     sheet.Cells[row, 3].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    var coefficient = (cpu.Price - priceMin) / priceRange;
-                    coefficient = Math.Max(coefficient, 0);
-                    coefficient = Math.Min(coefficient, 1);
-                    int red, green;
+                    sheet.Cells[row, 3].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Price, priceMin, priceRange, false));
 
-                    if (coefficient < .25m)
-                    {
-                        red = 0;
-                        green = (int)(510 * coefficient);
-                        green += 128;
-                    }
-                    else if (coefficient < .5m)
-                    {
-                        red = (int)(coefficient * 510);
-                        green = 255;
-                    }
-                    else
-                    {
-                        red = 255;
-                        green = 255 - (int)(255 * coefficient);
-                    }
-                    var color = Color.FromArgb(red, green, 0);
-
-                    sheet.Cells[row, 3].Style.Fill.BackgroundColor.SetColor(color);
                     sheet.Cells[row, 4].Value = cpu.Discount;
-                    sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
+                    sheet.Cells[row, 4].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    sheet.Cells[row, 4].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Discount, discountMin, discountRange));
+
+                    var discountedPrice = cpu.Price - cpu.Discount;
+                    //sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
+                    sheet.Cells[row, 5].Formula = "=ROUND(C" + row + ", 1)-D" + row;
+                    sheet.Cells[row, 5].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    sheet.Cells[row, 5].Style.Fill.BackgroundColor.SetColor(Gradient(discountedPrice, drpMin, drpRange, false));
+
                     if (cpu.PassMark != null)
                     {
                         sheet.Cells[row, 6].Value = cpu.PassMark.Value;
+                        sheet.Cells[row, 6].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        sheet.Cells[row, 6].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.PassMark.Value, passmarkMin, passmarkRange));
                     }
                     if (cpu.FutureMark != null)
                     {
                         sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
+                        sheet.Cells[row, 7].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        sheet.Cells[row, 7].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.FutureMark.Value, futuremarkMin, futuremarkRange));
                     }
                     if (cpu.Geekbench != null)
                     {
                         sheet.Cells[row, 8].Value = cpu.Geekbench.Value;
+                        sheet.Cells[row, 8].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        sheet.Cells[row, 8].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Geekbench.Value, geekbenchMin, geekbenchRange));
                     }
                     sheet.Cells[row, 9].Formula = "=ROUND(F" + row + "/E" + row + ",1)";
-                    sheet.Cells[row, 10].Formula = "=ROUND(G" + row + "/E" + row + ",1)";
-                    sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
+                    sheet.Cells[row, 9].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    sheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.PassMark.Value / discountedPrice, passmarkValueMin, passmarkValueRange));
 
+                    if (cpu.FutureMark != null)
+                    {
+                        sheet.Cells[row, 10].Formula = "=ROUND(G" + row + "/E" + row + ",1)";
+                        sheet.Cells[row, 10].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        sheet.Cells[row, 10].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.FutureMark.Value / discountedPrice, futuremarkValueMin, futuremarkValueRange));
+                    }
+                    if (cpu.Geekbench != null)
+                    {
+
+                        sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
+                        sheet.Cells[row, 11].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                        sheet.Cells[row, 11].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Geekbench.Value / discountedPrice, geekbenchValueMin, geekbenchValueRange));
+                    }
+                    if(cpu.FlaggedForPurchase )
+                        sheet.Cells[row, 12].Value = "✓";
                     ++row;
                 }
 
@@ -566,6 +591,60 @@ namespace cpuScraper
                 package.Save();
             }
             #endregion
+        }
+
+        static Color Gradient(decimal value, decimal rangeMin, decimal range, bool greenLarge = true)
+        {
+
+            var coefficient = (value - rangeMin) / range;
+            coefficient = Math.Max(coefficient, 0);
+            coefficient = Math.Min(coefficient, 1);
+            int red, green;
+
+            if (greenLarge) // (0.75, 1.0] green -> lime, 0 red 128->255 green
+                if (coefficient > .75m)
+                {
+                    coefficient = (coefficient - .75m) * 4;
+
+                    red = 0;
+                    green = (int)(0xFF - (0x80 * coefficient));
+                }
+                else if (coefficient > .5m) // (0.5, 0.75] lime -> yellow, 255 green 255->0 red
+                {
+                    coefficient = (coefficient - .5m) * 4;
+
+                    red = (int)(0xFF * (1 - coefficient));
+                    green = 0xFF;
+                }
+                else // [0.0, 0.5] yellow -> red, red 255 
+                {
+                    coefficient = 2 * coefficient;
+
+                    red = 0xFF;
+                    green = (int)(0xFF * coefficient);
+                }
+            else if (coefficient < .25m) // [0.0, 0.25)
+            {
+                coefficient *= 4;
+
+                red = 0;
+                green = (int)(0x80 + (0x80 * coefficient));
+            }
+            else if (coefficient < .5m) // [0.25, 0.5)
+            {
+                coefficient = (coefficient - .25m) * 4;
+
+                red = (int)(0xFF * coefficient);
+                green = 0xFF;
+            }
+            else // [0.5, 1.0)
+            {
+                coefficient = 2 * (coefficient - .5m);
+
+                red = 0xFF;
+                green = (int)(0xFF * (1 - coefficient));
+            }
+            return Color.FromArgb(red, green, 0);
         }
     }
 }
