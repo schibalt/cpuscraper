@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -12,37 +13,46 @@ using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
 
-namespace cpuScraper
+namespace gpuScraper
 {
     static class Utils
     {
-        public static Regex MCSeriesRegex = new Regex(@"(i[357]|FX|A(6|10)[ |-]|Opteron|Athlon|Sempron|Pentium 4|Celeron)?", RegexOptions.Compiled);
+        public static Regex MCSeriesRegex = new Regex(@"Geforce|Quadro|Radeon|FirePro", RegexOptions.IgnoreCase);
 
-        public static Regex MCModelRegex = new Regex(@"E[35]( |-)?\d{4} ?[vV]\d", RegexOptions.Compiled);
-        public static Regex MCModelRegex2 = new Regex(@"[A-Z]?\d{4}([A-Za-z]){0,2}", RegexOptions.Compiled);
-        public static Regex MCModelRegex3 = new Regex(@"\d\.\dGHz", RegexOptions.Compiled);
+        public static Regex MCModelRegex = new Regex(@"GTX? \d?\d\d0( Ti(tan( X)?)?)?", RegexOptions.Compiled);
+        public static Regex MCModelRegex2 = new Regex(@"(M|K|W)\d000", RegexOptions.Compiled);
+        public static Regex MCModelRegex3 = new Regex(@"R(X|9) \d\d0X?2?", RegexOptions.Compiled);
+        public static Regex MCModelRegex4 = new Regex(@"\d?\d\d0( Ti(tan( X)?)?)?", RegexOptions.Compiled);
+        //public static Regex MCModelRegex2 = new Regex(@"[A-Z]?\d{4}([A-Za-z]){0,2}", RegexOptions.Compiled);
+        //public static Regex MCModelRegex3 = new Regex(@"\d\.\dGHz", RegexOptions.Compiled);
 
         public static Regex DiscountRegex = new Regex(@"\d{2}", RegexOptions.Compiled);
 
-        public static Regex CpuBenchBrandRegex = new Regex(@"(Intel|AMD|HP)?", RegexOptions.Compiled);
+        public static Regex GigsMemRegex = new Regex(@"\dgb", RegexOptions.IgnoreCase);
 
-        public static Regex CpuBenchSeriesRegex = new Regex(@"i[357]|[[mM]\d?]|[FR]X[ |-]|Phenom II X?\d\d? |Opteron|Athlon (X4|II X3 |64 )?|A(6|8|10|12(PRO )?[ |-])|Turion (II Neo|X2)|Sempron|Pentium [45M]|Celeron", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        public static Regex GpuBenchBrandRegex = new Regex(@"ASUS|Zotac|Gigabyte|EVGA|MSI|nvidia", RegexOptions.IgnoreCase);
 
-        public static Regex CpuBenchModelRegex = new Regex(@"E[35]-\d{4} v[1-5]", RegexOptions.Compiled);
-        public static Regex CpuBenchModelRegex2 = new Regex(@"([a-z]\d{2}[a-z]?|[A-Z]?\d{3,4}[A-Z]?|\d[A-Z]\d\d|TWKR|Hexa-Core)[a-z]{0,2}", RegexOptions.Compiled);
-        public static Regex CpuBenchModelRegex3 = new Regex(@"[A-Z]{1,2}-\d\d", RegexOptions.Compiled);
-        public static Regex CpuBenchModelRegex4 = new Regex(@"[A-Z]-[A-Z]\d\d[A-Z]", RegexOptions.Compiled);
-        public static Regex CpuBenchModelRegex5 = new Regex(@"\d\.\d[1-9]?GHz", RegexOptions.Compiled);
-        public static Regex CpuBenchModelRegex6 = new Regex(@"(\d\.\d)0?(GHz)", RegexOptions.Compiled);
+        public static Regex GpuBenchSeriesRegex = new Regex(@"Geforce|Radeon( (pro|hd|R(X|9|7)))?|quadro|grid", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-        public enum BenchTypes { PassMark, FutureMark, PassMarkRanged };
+        public static Regex GpuBenchModelRegex = new Regex(@"GTX? \d?\d\d0( Ti)?", RegexOptions.IgnoreCase);
+        public static Regex GpuBenchModelRegex2 = new Regex(@"\w?\d\d\d(\d|\w)?2?", RegexOptions.Compiled);
+        public static Regex GpuBenchModelRegex3 = new Regex(@"K\d(\d\d\w?)?", RegexOptions.Compiled);
+        public static Regex GpuBenchModelRegex4 = new Regex(@"(fx )?\w?\d\d\d0", RegexOptions.Compiled);
+        public static Regex GpuBenchModelRegex5 = new Regex(@"Titan( X)?|duo|fury|device|gpu|cx|nano", RegexOptions.IgnoreCase);
+        public static Regex GpuBenchModelRegex6 = new Regex(@"duo?", RegexOptions.IgnoreCase);
 
-        public static ushort PassMarkCeiling = 25000;
-        public static ushort FutureMarkCeiling = 12000;
+        public enum BenchTypes
+        {
+            PassMark,
+            //FutureMark, PassMarkRanged
+        };
+
+        //public static ushort PassMarkCeiling = 25000;
+        //public static ushort FutureMarkCeiling = 12000;
 
         public static string[] NameNodeXPath = new string[]
         {
-            "td[1]/a[2]",
+            "td[1]/a[1]",
             "td[3]/a[1]",
 
             "td[1]"
@@ -52,7 +62,7 @@ namespace cpuScraper
 
         public static string[] ValueNodeXPath = new string[]
         {
-            "td[3]",
+            "td[2]",
             "td[5]/div/div",
 
             "td[2]"
@@ -87,17 +97,21 @@ namespace cpuScraper
     }
 
 
-    class Cpu
+    class Gpu
     {
         public uint MCId { get; set; }
 
         public decimal Price { get; set; }
+
+        public decimal RebatePrice { get; set; }
 
         public string Brand { get; set; }
 
         public string Series { get; set; }
 
         public string Model { get; set; }
+
+        public byte GigsMem { get; set; }
 
         public string Name { get; set; }
 
@@ -107,53 +121,55 @@ namespace cpuScraper
 
         public Benchmark FutureMark;
 
-        public Benchmark Geekbench;
+        public Benchmark UserBenchmark;
 
         public bool FlaggedForPurchase { get; set; }
-
-        public bool Skip { get; set; }
-
-        public Cpu(HtmlNode node)
+        
+        public Gpu(HtmlNode node)
         {
             var anchor = node.SelectSingleNode("descendant::a[starts-with(@id,'hypProductH2_')]");
             MCId = Convert.ToUInt32(anchor.Attributes.Where(a => a.Name.Equals("data-id")).First().Value);
             Name = anchor.Attributes.Where(a => a.Name.Equals("data-name")).First().Value;
-            Price = Convert.ToDecimal(anchor.Attributes.Where(a => a.Name.Equals("data-price")).First().Value);
+            var priceNode = anchor.Attributes.Where(a => a.Name.Equals("data-price")).First();
+            if (string.IsNullOrWhiteSpace(priceNode.Value))
+                throw new InvalidOperationException("price node is empty");
+            Price = Convert.ToDecimal(priceNode.Value);
             Brand = anchor.Attributes.Where(a => a.Name.Equals("data-brand")).First().Value;
 
-            MatchCollection matches = Utils.MCSeriesRegex.Matches(Name);
+            var matches = Utils.MCSeriesRegex.Matches(Name);
 
             Series = "";
 
             for (var matchIdx = 0; matchIdx < matches.Count; ++matchIdx)
                 if (matches[matchIdx].Value.Length > Series.Length)
                     Series = matches[matchIdx].Value.Replace(" ", "").Replace("-", "").ToUpper();
-
-            if (MCId == 430516)
-            {
-                Model = "6376";
-                return;
-            }
-
+            
             Model = "";
 
             var modelRegexes = new List<Regex>
             {
                 Utils.MCModelRegex,
                 Utils.MCModelRegex2,
-                Utils.MCModelRegex3
+                Utils.MCModelRegex3,
+                Utils.MCModelRegex4
             };
 
-            var match = false;
+            var hasMatch = false;
 
-            for (var regex = 0; regex < modelRegexes.Count && !match; ++regex)
+            for (var regex = 0; regex < modelRegexes.Count && !hasMatch; ++regex)
             {
                 matches = modelRegexes[regex].Matches(Name);
-                match = matches.Count > 0;
+                hasMatch = matches.Count > 0;
 
-                if (match)
+                if (hasMatch)
                     Model = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
             }
+
+            matches = Utils.GigsMemRegex.Matches(Name);
+            hasMatch = matches.Count > 0;
+
+            if (hasMatch)
+                GigsMem = Convert.ToByte(new string(matches[0].Groups[0].Value.Where(c => char.IsDigit(c) || c == '.').ToArray()));
 
             var discountNode = node.SelectNodes("descendant::div[@class='highlight clear']").First();
 
@@ -164,8 +180,17 @@ namespace cpuScraper
 
             if (string.IsNullOrWhiteSpace(Series) && string.IsNullOrWhiteSpace(Model))
                 throw new ArgumentException();
+            
+        }
 
-            Skip = Series == "FX" && Model == "9590";
+        public void SetRebatePrice(HtmlNode node)
+        {
+            var priceNode = node.SelectSingleNode("descendant::span[@class='price']");
+            var digitArray = priceNode.InnerHtml.Where(c => char.IsDigit(c) || c == '.').ToArray();
+
+            if (digitArray.Length < 1)
+                return;
+            Price = Convert.ToDecimal(new string(digitArray));
         }
     }
 
@@ -178,9 +203,11 @@ namespace cpuScraper
 
         public string Model { get; set; }
 
+        public byte GigsMem { get; set; }
+
         public string Name { get; set; }
 
-        public ushort Value { get; set; }
+        public decimal Value { get; set; }
 
         public Benchmark(HtmlNode node, List<Benchmark> passMarks, int type)
         {
@@ -191,22 +218,27 @@ namespace cpuScraper
             else
                 return;
 
-            MatchCollection matches = Utils.CpuBenchBrandRegex.Matches(nameAnchor.InnerText);
+            MatchCollection matches = Utils.GpuBenchBrandRegex.Matches(nameAnchor.InnerText);
 
-            Brand = matches[0].Value;
+            matches = Utils.GigsMemRegex.Matches(Name);
+            var hasMatch = matches.Count > 0;
 
-            matches = Utils.CpuBenchSeriesRegex.Matches(nameAnchor.InnerText);
+            if (hasMatch)
+                GigsMem = Convert.ToByte(new string(matches[0].Groups[0].Value.Where(c => char.IsDigit(c) || c == '.').ToArray()));
+
+            matches = Utils.GpuBenchSeriesRegex.Matches(nameAnchor.InnerText);
 
             if (matches.Count > 0)
                 Series = matches[0].Value.Replace(" ", "").Replace("-", "").ToUpper();
 
             var modelRegexes = new List<Regex>
             {
-                Utils.CpuBenchModelRegex,
-                Utils.CpuBenchModelRegex2,
-                Utils.CpuBenchModelRegex3,
-                Utils.CpuBenchModelRegex4,
-                Utils.CpuBenchModelRegex5
+                Utils.GpuBenchModelRegex,
+                Utils.GpuBenchModelRegex2,
+                Utils.GpuBenchModelRegex3,
+                Utils.GpuBenchModelRegex4,
+                Utils.GpuBenchModelRegex5,
+                Utils.GpuBenchModelRegex6
             };
 
             var match = false;
@@ -222,20 +254,22 @@ namespace cpuScraper
                 }
             }
 
-            if (!match)
-            {
-                matches = Utils.CpuBenchModelRegex6.Matches(nameAnchor.InnerText);
-                match = matches.Count > 0;
+            //if (!match)
+            //{
+            //    matches = Utils.CpuBenchModelRegex6.Matches(nameAnchor.InnerText);
+            //    match = matches.Count > 0;
 
-                if (match)
-                    Model = (matches[0].Groups[1].Value + matches[0].Groups[2].Value).Replace(" ", "").Replace("-", "").ToUpper();
-            }
+            //    if (match)
+            //        Model = (matches[0].Groups[1].Value + matches[0].Groups[2].Value).Replace(" ", "").Replace("-", "").ToUpper();
+            //}
 
-            nameAnchor = node.SelectSingleNode(Utils.ValueNodeXPath[(int)type]);
+            nameAnchor = node.SelectSingleNode(Utils.ValueNodeXPath[type]);
 
-            Value = Convert.ToUInt16(nameAnchor.InnerText.Trim().Replace(",", ""));
+            Value = ushort.Parse(new string(nameAnchor.InnerText.Where(c => char.IsDigit(c) || c == '.').ToArray()));
 
-            if (string.IsNullOrWhiteSpace(Series) && string.IsNullOrWhiteSpace(Model))
+            if (
+                //string.IsNullOrWhiteSpace(Series) && 
+                string.IsNullOrWhiteSpace(Model))
             {
                 Console.BackgroundColor = ConsoleColor.DarkYellow;
                 Console.ForegroundColor = ConsoleColor.Yellow;
@@ -252,33 +286,30 @@ namespace cpuScraper
 
     class Program
     {
-        static void SetBenchmark(Benchmark benchmark, ref Benchmark toSet)
-        {
-            if (toSet == null)
-            {
-                toSet = benchmark;
-            }
-        }
-
         static void Main(string[] args)
         {
             var htmlDoc = new HtmlDocument();
-            var mcCpus = new List<Cpu>();
+            var mcGpus = new List<Gpu>();
             var passMarks = new List<Benchmark>();
             var futureMarks = new List<Benchmark>();
 
             var pages = new List<string>
             {
-                        "Processors_CPUs   Computer Parts   Micro Center.htm",
-                        "Processors_CPUs   Computer Parts   Micro Center2.htm",
-                        "Processors_CPUs   Computer Parts   Micro Center3.htm"
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center2.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center3.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center4.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center5.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center6.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center7.html",
+                        "Video Cards _ Video Cards, TV Tuners _ Computer Parts _ Micro Center8.html",
             };
 
             var webpages = new List<string>
             {
-                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=1",
-                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=2",
-                        "http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=3"
+                //"http://www.microcenter.com/search/search_results.aspx?N=4294966937&",
+                //"http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=2",
+                //"http://www.microcenter.com/search/search_results.aspx?N=4294966995&page=3"
             };
 
             #region read benchmarks
@@ -291,7 +322,7 @@ namespace cpuScraper
                     };
 
             HtmlNodeCollection nodes = null;
-            string path = @"mccpus.txt";
+            string path = @"mcgpus.txt";
 
             File.WriteAllText(path, string.Empty);
 
@@ -305,7 +336,7 @@ namespace cpuScraper
                 cookies.Add(uri, new Cookie("storeSelected", "051"));
                 cookies.Add(uri, new Cookie("ipp", "25"));
 
-                for (var microCtrPgNo = 0; microCtrPgNo < 3; microCtrPgNo++)
+                for (var microCtrPgNo = 0; microCtrPgNo < pages.Count; microCtrPgNo++)
                 {
                     if (useWeb)
                     {
@@ -332,33 +363,42 @@ namespace cpuScraper
                     }
 
                     nodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='detail_wrapper']");
+                    var rebateNodes = htmlDoc.DocumentNode.SelectNodes("//div[@class='price_wrapper']");
 
                     foreach (var node in nodes)
                     {
-                        var cpu = new Cpu(node);
-                        mcCpus.Add(cpu);
-                        sw.WriteLine(cpu.Print());
+                        try
+                        {
+                            var gpu = new Gpu(node);
+                            gpu.SetRebatePrice(rebateNodes.ElementAt(nodes.IndexOf(node)));
+                            mcGpus.Add(gpu);
+                            sw.WriteLine(gpu.Print());
+                        }
+                        catch (InvalidOperationException e)
+                        { Console.WriteLine(e); }
+                        catch (ArgumentException e)
+                        { Console.WriteLine(e); }
                     }
                 } // iterate pages
             }
 
             pages = new List<string>
                     {
-                        "PassMark - CPU Benchmarks - CPU Mega Page - Detailed List of Benchmarked CPUs.htm",
-                        "Best Processors June - 2016.htm",
-                        "Processor Benchmarks - Geekbench Browser.htm"
+                        "PassMark Software - Video Card (GPU) Benchmarks - High End Video Cards.html",
+                        "Best Graphics Cards January - 2017.html",
+                        //"Processor Benchmarks - Geekbench Browser.htm"
                     };
 
             webpages = new List<string>
                     {
                         "https://www.cpubenchmark.net/CPU_mega_page.html",
-                        "http://www.futuremark.com/hwc/hwcenter/page-main.php?type=cpu&filters=desktop,mobile,server",
-                        "https://browser.primatelabs.com/processor-benchmarks"
+                        //"http://www.futuremark.com/hwc/hwcenter/page-main.php?type=cpu&filters=desktop,mobile,server",
+                        //"https://browser.primatelabs.com/processor-benchmarks"
                     };
 
             var benchContainerXPaths = new List<string>
                     {
-                        "//descendant::table[@id='cputable']/tbody/tr",
+                        "//descendant::div[@id='mark']/table/tbody/tr",
                         "//descendant::table[@id='productTable']/tbody/tr",
                         "//descendant::div[@id='4']/table[@id='pc64']/tbody/tr"
 
@@ -404,25 +444,33 @@ namespace cpuScraper
                         {
                             var benchmark = new Benchmark(node, passMarks, page);
 
+                            if (benchmark.Model == null)
+                                continue;
+
                             sw.WriteLine(benchmark.Print());
 
-                            var matchingCpus = mcCpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)));
-                            //var cpu = matchingCpus.FirstOrDefault();
+                            var matchingGpus = mcGpus.Where(c => (c.Series + c.Model).Equals((benchmark.Series + benchmark.Model)) && ((c.GigsMem < 1 || benchmark.GigsMem < 1) || (c.GigsMem == benchmark.GigsMem))).ToList();
 
-                            //if (cpu == null) continue;
+                            //really doesn't help
+                            //var sameMemGpus = matchingGpus.Where(g => benchmark.GigsMem > 0 && benchmark.GigsMem == g.GigsMem).ToList();
 
-                            foreach (var cpu in matchingCpus)
+                            //if (sameMemGpus.Any())
+                            //    matchingGpus.RemoveAll(g => !sameMemGpus.Contains(g));
+
+                            // TODO unflag ones where price isn't lower and bench isn't higher
+
+                            foreach (var gpu in matchingGpus.Where(g => (page == 0 && (g.PassMark == null || g.PassMark.GigsMem < 1)) || (page == 1 && (g.FutureMark == null || g.FutureMark.GigsMem < 1))||page > 1))
                             {
                                 switch (page)
                                 {
                                     case 0:
-                                        SetBenchmark(benchmark, ref cpu.PassMark);
+                                        gpu.PassMark = benchmark;
                                         break;
                                     case 1:
-                                        SetBenchmark(benchmark, ref cpu.FutureMark);
+                                        gpu.FutureMark = benchmark;
                                         break;
                                     case 2:
-                                        SetBenchmark(benchmark, ref cpu.Geekbench);
+                                        gpu.PassMark = benchmark;
                                         break;
                                 }
                             }
@@ -443,7 +491,7 @@ namespace cpuScraper
 
             #region excel
 
-            var sheetFile = new FileInfo(@"cpubench.xlsx");
+            var sheetFile = new FileInfo(@"gpubench.xlsx");
             try
             {
                 sheetFile.Delete();
@@ -475,112 +523,126 @@ namespace cpuScraper
 
                 var row = 2;
 
-                mcCpus = mcCpus.Where(c => c.PassMark.Value > 4000 && Math.Round(c.Price) < 900).ToList();
+                mcGpus = mcGpus.ToList();
+                //mcCpus = mcCpus.Where(c => c.PassMark.Value > 4000 && Math.Round(c.Price) < 900).ToList();
+                mcGpus = mcGpus.Where(c => c.PassMark != null).OrderByDescending(c => c.PassMark.Value).ToList();
                 //mcCpus = mcCpus.OrderByDescending(c => c.PassMark.Value / (c.Price - c.Discount)).ToList();
 
-                var passmark = 0;
+                //var passmark = 0;
+                var price = decimal.MaxValue;
 
-                foreach(var cpu in mcCpus)
-                    if(cpu.PassMark.Value > passmark && !cpu.Skip)
+                foreach (var gpu in mcGpus)
+                    if (gpu.Price - gpu.Discount < price )
+                    //if (cpu.PassMark.Value > passmark && !cpu.Skip)
                     {
-                        cpu.FlaggedForPurchase = true;
-                        passmark = cpu.PassMark.Value;
-                    }
+                        gpu.FlaggedForPurchase = true;
+                        price = gpu.Price - gpu.Discount;
+                        //passmark = cpu.PassMark.Value;
 
-                var priceMin = mcCpus.Min(c => c.Price);
-                var priceMax = mcCpus.Max(c => c.Price);
+                        // unflag where price isn't lower and passmark isn't higher.  if price isn't lower passmark ought to be higher.
+                        var markedUp=mcGpus.Where(g => g != gpu && g.FlaggedForPurchase && g.Price >= gpu.Price && g.PassMark != null && gpu.PassMark != null && g.PassMark.Value <= gpu.PassMark.Value).ToList();
+                        markedUp.ForEach(g=>g.FlaggedForPurchase=false);
+                    }
+                
+                var priceMin = mcGpus.Min(c => c.Price);
+                var priceMax = mcGpus.Max(c => c.Price);
                 var priceRange = priceMax - priceMin;
 
-                var discountMin = mcCpus.Min(c => c.Discount);
-                var discountMax = mcCpus.Max(c => c.Discount);
+                var discountMin = mcGpus.Min(c => c.Discount);
+                var discountMax = mcGpus.Max(c => c.Discount);
                 var discountRange = discountMax - discountMin;
 
-                var drpMin = mcCpus.Min(c => c.Price - c.Discount);
-                var drpMax = mcCpus.Max(c => c.Price - c.Discount);
+                var drpMin = mcGpus.Min(c => c.Price - c.Discount);
+                var drpMax = mcGpus.Max(c => c.Price - c.Discount);
                 var drpRange = drpMax - drpMin;
 
-                var passmarkMin = mcCpus.Min(c => c.PassMark.Value);
-                var passmarkMax = mcCpus.Max(c => c.PassMark.Value);
+                var passmarkMin = mcGpus.Min(c => c.PassMark.Value);
+                var passmarkMax = mcGpus.Max(c => c.PassMark.Value);
                 var passmarkRange = passmarkMax - passmarkMin;
 
-                var futuremarkCpus = mcCpus.Where(c => c.FutureMark != null);
-                var futuremarkMin = futuremarkCpus.Min(c => c.FutureMark.Value);
-                var futuremarkMax = futuremarkCpus.Max(c => c.FutureMark.Value);
+                var futuremarkGpus = mcGpus.Where(c => c.FutureMark != null);
+                var futuremarkMin = futuremarkGpus.Min(c => c.FutureMark.Value);
+                var futuremarkMax = futuremarkGpus.Max(c => c.FutureMark.Value);
                 var futuremarkRange = futuremarkMax - futuremarkMin;
 
-                var geekbenchCpus = mcCpus.Where(c => c.Geekbench != null);
-                var geekbenchMin = geekbenchCpus.Min(c => c.Geekbench.Value);
-                var geekbenchMax = geekbenchCpus.Max(c => c.Geekbench.Value);
-                var geekbenchRange = geekbenchMax - geekbenchMin;
+                //var geekbenchGpus = mcGpus.Where(c => c.UserBenchmark != null);
+                //var geekbenchMin = geekbenchGpus.Min(c => c.UserBenchmark.Value);
+                //var geekbenchMax = geekbenchGpus.Max(c => c.UserBenchmark.Value);
+                //var geekbenchRange = geekbenchMax - geekbenchMin;
 
-                var passmarkValueMin = mcCpus.Min(c => c.PassMark.Value / (c.Price - c.Discount));
-                var passmarkValueMax = mcCpus.Max(c => c.PassMark.Value / (c.Price - c.Discount));
+                var passmarkValueMin = mcGpus.Min(c => c.PassMark.Value / (c.Price - c.Discount));
+                var passmarkValueMax = mcGpus.Max(c => c.PassMark.Value / (c.Price - c.Discount));
                 var passmarkValueRange = passmarkValueMax - passmarkValueMin;
 
-                var futuremarkValueMin = futuremarkCpus.Min(c => c.FutureMark.Value / (c.Price - c.Discount));
-                var futuremarkValueMax = futuremarkCpus.Max(c => c.FutureMark.Value / (c.Price - c.Discount));
+                var futuremarkValueMin = futuremarkGpus.Min(c => c.FutureMark.Value / (c.Price - c.Discount));
+                var futuremarkValueMax = futuremarkGpus.Max(c => c.FutureMark.Value / (c.Price - c.Discount));
                 var futuremarkValueRange = futuremarkValueMax - futuremarkValueMin;
 
-                var geekbenchValueMin = geekbenchCpus.Min(c => c.Geekbench.Value / (c.Price - c.Discount));
-                var geekbenchValueMax = geekbenchCpus.Max(c => c.Geekbench.Value / (c.Price - c.Discount));
-                var geekbenchValueRange = geekbenchValueMax - geekbenchValueMin;
+                //var geekbenchValueMin = geekbenchGpus.Min(c => c.UserBenchmark.Value / (c.Price - c.Discount));
+                //var geekbenchValueMax = geekbenchGpus.Max(c => c.UserBenchmark.Value / (c.Price - c.Discount));
+                //var geekbenchValueRange = geekbenchValueMax - geekbenchValueMin;
 
-                foreach (var cpu in mcCpus)
+                foreach (var gpu in mcGpus)
                 {
-                    sheet.Cells[row, 1].Value = cpu.Brand;
+                    sheet.Cells[row, 1].Value = gpu.Brand;
 
-                    sheet.Cells[row, 2].Value = cpu.Name;
+                    sheet.Cells[row, 2].Value = gpu.Name;
 
-                    sheet.Cells[row, 3].Value = cpu.Price;
+                    sheet.Cells[row, 3].Value = gpu.Price;
                     sheet.Cells[row, 3].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    sheet.Cells[row, 3].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Price, priceMin, priceRange, false));
+                    sheet.Cells[row, 3].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.Price, priceMin, priceRange, false));
 
-                    sheet.Cells[row, 4].Value = cpu.Discount;
-                    sheet.Cells[row, 4].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    sheet.Cells[row, 4].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Discount, discountMin, discountRange));
+                    //sheet.Cells[row, 4].Value = gpu.Discount;
+                    //sheet.Cells[row, 4].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    //sheet.Cells[row, 4].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.Discount, discountMin, discountRange));
 
-                    var discountedPrice = cpu.Price - cpu.Discount;
+                    var discountedPrice = gpu.Price - gpu.Discount;
                     //sheet.Cells[row, 5].Formula = "=MAX(ROUND(C" + row + ", 1)-D" + row + ",1e-304)";
                     sheet.Cells[row, 5].Formula = "=ROUND(C" + row + ", 1)-D" + row;
                     sheet.Cells[row, 5].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
                     sheet.Cells[row, 5].Style.Fill.BackgroundColor.SetColor(Gradient(discountedPrice, drpMin, drpRange, false));
 
-                    if (cpu.PassMark != null)
+                    if (gpu.PassMark != null)
                     {
-                        sheet.Cells[row, 6].Value = cpu.PassMark.Value;
+                        sheet.Cells[row, 6].Value = gpu.PassMark.Value;
                         sheet.Cells[row, 6].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                        sheet.Cells[row, 6].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.PassMark.Value, passmarkMin, passmarkRange));
+                        sheet.Cells[row, 6].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.PassMark.Value, passmarkMin, passmarkRange));
                     }
-                    if (cpu.FutureMark != null)
+
+                    if (gpu.FutureMark != null)
                     {
-                        sheet.Cells[row, 7].Value = cpu.FutureMark.Value;
+                        sheet.Cells[row, 7].Value = gpu.FutureMark.Value;
                         sheet.Cells[row, 7].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                        sheet.Cells[row, 7].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.FutureMark.Value, futuremarkMin, futuremarkRange));
+                        sheet.Cells[row, 7].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.FutureMark.Value, futuremarkMin, futuremarkRange));
                     }
-                    if (cpu.Geekbench != null)
-                    {
-                        sheet.Cells[row, 8].Value = cpu.Geekbench.Value;
-                        sheet.Cells[row, 8].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                        sheet.Cells[row, 8].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Geekbench.Value, geekbenchMin, geekbenchRange));
-                    }
+
+                    //if (gpu.UserBenchmark != null)
+                    //{
+                    //    sheet.Cells[row, 8].Value = gpu.UserBenchmark.Value;
+                    //    sheet.Cells[row, 8].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    //    sheet.Cells[row, 8].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.UserBenchmark.Value, geekbenchMin, geekbenchRange));
+                    //}
+
                     sheet.Cells[row, 9].Formula = "=ROUND(F" + row + "/E" + row + ",1)";
                     sheet.Cells[row, 9].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    sheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.PassMark.Value / discountedPrice, passmarkValueMin, passmarkValueRange));
+                    sheet.Cells[row, 9].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.PassMark.Value / discountedPrice, passmarkValueMin, passmarkValueRange));
 
-                    if (cpu.FutureMark != null)
+                    if (gpu.FutureMark != null)
                     {
                         sheet.Cells[row, 10].Formula = "=ROUND(G" + row + "/E" + row + ",1)";
                         sheet.Cells[row, 10].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                        sheet.Cells[row, 10].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.FutureMark.Value / discountedPrice, futuremarkValueMin, futuremarkValueRange));
+                        sheet.Cells[row, 10].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.FutureMark.Value / discountedPrice, futuremarkValueMin, futuremarkValueRange));
                     }
-                    if (cpu.Geekbench != null)
-                    {
 
-                        sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
-                        sheet.Cells[row, 11].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                        sheet.Cells[row, 11].Style.Fill.BackgroundColor.SetColor(Gradient(cpu.Geekbench.Value / discountedPrice, geekbenchValueMin, geekbenchValueRange));
-                    }
-                    if(cpu.FlaggedForPurchase )
+                    //if (gpu.UserBenchmark != null)
+                    //{
+
+                    //    sheet.Cells[row, 11].Formula = "=ROUND(H" + row + "/E" + row + ",1)";
+                    //    sheet.Cells[row, 11].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                    //    sheet.Cells[row, 11].Style.Fill.BackgroundColor.SetColor(Gradient(gpu.UserBenchmark.Value / discountedPrice, geekbenchValueMin, geekbenchValueRange));
+                    //}
+
+                    if (gpu.FlaggedForPurchase)
                         sheet.Cells[row, 12].Value = "✓";
                     ++row;
                 }
